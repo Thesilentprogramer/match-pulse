@@ -1,7 +1,7 @@
 "use client";
 
-import { motion, useReducedMotion } from "framer-motion";
 import { playerName } from "@/domain/players";
+import { usePrefersReducedMotion } from "@/hooks/use-reduced-motion";
 import type { InningsMeta } from "@/domain/types";
 import type { MatchView } from "@/domain/selectors";
 import { NumberTicker } from "@/components/number-ticker";
@@ -25,13 +25,10 @@ export function Scorebug({
   const statusLine = meta?.firstInnings.replace(/^First innings\.\s*/, "") || view.equation;
 
   return (
-    <section
-      className={`mp-glass relative mt-3 overflow-visible rounded-3xl p-4 sm:p-5 ${burst ? "pt-8" : ""}`}
-      aria-label="Score"
-    >
+    <section className="mp-glass relative mt-3 min-h-[32rem] overflow-hidden rounded-3xl p-4 sm:p-5" aria-label="Score">
       {burst ? (
         <p
-          className={`mp-display absolute -top-3.5 left-1/2 z-10 -translate-x-1/2 rounded-full px-4 py-1 text-2xl shadow-[var(--mp-elev-2)] ${
+          className={`mp-display absolute top-3 left-1/2 z-10 -translate-x-1/2 rounded-full px-4 py-1 text-2xl shadow-[var(--mp-elev-2)] ${
             burst === "wicket" ? "bg-[var(--mp-coral)] text-black" : "bg-[var(--mp-accent)] text-white"
           }`}
         >
@@ -40,15 +37,15 @@ export function Scorebug({
       ) : null}
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <p className="mp-kicker flex min-w-0 items-center gap-2 text-white/75">
+          <p className="mp-kicker flex h-5 min-w-0 items-center gap-2 text-white/75">
             <span className="size-1.5 shrink-0 rounded-full" style={{ background: batting?.color ?? "var(--mp-teal)" }} />
             <span className="truncate">{batting?.name ?? "Batting"}</span>
             <span className="shrink-0 text-white/55">vs</span>
             <span className="size-1.5 shrink-0 rounded-full" style={{ background: bowling?.color ?? "var(--mp-coral)" }} />
             <span className="shrink-0">{bowling?.short ?? "OPP"}</span>
           </p>
-          <div className="mt-2 flex min-w-0 items-end gap-3">
-            <p className="mp-display text-[clamp(2.75rem,14vw,4.75rem)] text-white tabular-nums">
+          <div className="mt-2 flex h-20 min-w-0 items-end gap-3 overflow-hidden">
+            <p className="mp-display text-[clamp(2.75rem,14vw,4.75rem)] leading-none text-white tabular-nums">
               {score ? (
                 <>
                   <NumberTicker value={score.runs} />
@@ -60,39 +57,40 @@ export function Scorebug({
             </p>
             <p className="mb-1 font-mono text-sm text-[var(--mp-lime)] tabular-nums">{score?.oversLabel ?? "0.0"}</p>
           </div>
-          <p className="mt-2 max-w-md text-sm text-white/80">{noChase ? statusLine : view.equation}</p>
+          <p className="mt-2 line-clamp-2 h-10 max-w-md text-sm text-white/80">{noChase ? statusLine : view.equation}</p>
         </div>
+        <div className="grid size-[4.5rem] shrink-0 place-items-center">
+          {noChase ? (
+            <p className="mp-kicker rounded-full border border-white/15 px-2 py-3 text-center text-white/75">Inn.</p>
+          ) : (
+            <WinDial value={view.winProb} />
+          )}
+        </div>
+      </div>
+      <div className="mt-4 grid h-16 items-center gap-3 sm:grid-cols-[minmax(0,1fr)_140px]">
         {noChase ? (
-          <p className="mp-kicker shrink-0 rounded-full border border-white/15 px-2 py-3 text-center text-white/75">Inn.</p>
+          <p className="text-sm text-white/70">No chase on the board yet.</p>
         ) : (
-          <WinDial value={view.winProb} />
+          <>
+            <ProgressBar label="Win chance" value={Math.round(view.winProb * 100)} className="text-[var(--mp-accent)]" />
+            <WinChart series={view.winSeries} />
+          </>
         )}
       </div>
-      {noChase ? null : (
-        <div className="mt-4 grid gap-3 sm:grid-cols-[minmax(0,1fr)_140px] sm:items-center">
-          <ProgressBar label="Win chance" value={Math.round(view.winProb * 100)} className="text-[var(--mp-accent)]" />
-          <WinChart series={view.winSeries} />
-        </div>
-      )}
       <dl className="mt-4 grid grid-cols-2 gap-2 text-sm sm:grid-cols-4">
         <Stat label="CRR" value={view.crrLabel} />
         <Stat label="RRR" value={view.rrrLabel} />
         <Stat label="Strike" value={striker} />
         <Stat label="Other end" value={nonStriker} />
       </dl>
-      {view.tape.length > 0 ? (
-        <div className="mt-4 flex flex-wrap items-center gap-1.5" aria-label={view.tapeLabel}>
-          <span className="mp-kicker mr-1 text-muted-foreground">{view.tapeLabel}</span>
-          {view.tape.map((chip, index) => (
-            <span
-              key={`${chip}-${index}`}
-              className={`grid size-7 place-items-center rounded-md font-mono text-xs ${chipColor(chip)}`}
-            >
-              {chip}
-            </span>
-          ))}
-        </div>
-      ) : null}
+      <div className="mt-4 flex h-9 items-center gap-1.5 overflow-x-auto" aria-label={view.tapeLabel}>
+        <span className="mp-kicker mr-1 shrink-0 text-white/70">{view.tapeLabel || "This over"}</span>
+        {view.tape.map((chip, index) => (
+          <span key={`${chip}-${index}`} className={`grid size-7 shrink-0 place-items-center rounded-md font-mono text-xs ${chipColor(chip)}`}>
+            {chip}
+          </span>
+        ))}
+      </div>
       <OverStrip cards={view.cards} />
     </section>
   );
@@ -102,9 +100,8 @@ function OverStrip({ cards }: { cards: MatchView["cards"] }) {
   const overs = new Map<string, string>();
   for (const card of cards) overs.set(card.overLabel, card.headline);
   const rows = [...overs.entries()].slice(-12);
-  if (rows.length === 0) return null;
   return (
-    <ol className="mt-4 flex gap-2 overflow-x-auto pb-1" aria-label="Overs">
+    <ol className="mt-4 flex h-16 gap-2 overflow-x-auto" aria-label="Overs">
       {rows.map(([over, headline]) => (
         <li key={over} className="min-w-28 shrink-0 rounded-xl bg-black/25 px-2 py-1.5">
           <p className="mp-kicker text-white/70">{over}</p>
@@ -164,14 +161,14 @@ function WinChart({ series }: { series: number[] }) {
 }
 
 function WinDial({ value }: { value: number }) {
-  const reduce = useReducedMotion();
+  const reduce = usePrefersReducedMotion();
   const radius = 28;
   const circ = 2 * Math.PI * radius;
   return (
     <div className="relative grid size-[4.5rem] shrink-0 place-items-center">
       <svg viewBox="0 0 72 72" className="absolute inset-0 size-full" aria-hidden>
         <circle cx="36" cy="36" r={radius} stroke="rgb(255 255 255 / 16%)" strokeWidth="7" fill="none" />
-        <motion.circle
+        <circle
           cx="36"
           cy="36"
           r={radius}
@@ -180,10 +177,12 @@ function WinDial({ value }: { value: number }) {
           fill="none"
           strokeLinecap="round"
           strokeDasharray={circ}
-          initial={false}
-          animate={{ strokeDashoffset: circ * (1 - Math.min(1, Math.max(0, value))) }}
-          transition={reduce ? { duration: 0 } : { duration: 0.45, ease: [0.2, 0.8, 0.2, 1] }}
-          style={{ transformOrigin: "36px 36px", rotate: -90 }}
+          strokeDashoffset={circ * (1 - Math.min(1, Math.max(0, value)))}
+          style={{
+            transformOrigin: "36px 36px",
+            rotate: "-90deg",
+            transition: reduce ? "none" : "stroke-dashoffset 450ms cubic-bezier(0.2, 0.8, 0.2, 1)",
+          }}
         />
       </svg>
       <div className="text-center">

@@ -1,7 +1,6 @@
 "use client";
 
 import { useRef } from "react";
-import { motion, useReducedMotion } from "framer-motion";
 import { Sparkles } from "lucide-react";
 import { renderCommentary } from "@/domain/commentary";
 import type { Voice } from "@/domain/grounding";
@@ -28,16 +27,12 @@ export function MomentCardView({
   voice: Voice;
   onExplain: (card: Card) => void;
 }) {
-  const reduce = useReducedMotion();
   const timer = useRef<number | null>(null);
 
   return (
-    <motion.article
+    <article
       data-testid="moment-card"
-      className="mp-card mp-glass relative overflow-hidden rounded-3xl"
-      initial={reduce ? false : { opacity: 0, y: 16 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.28, ease: [0.2, 0.8, 0.2, 1] }}
+      className="mp-card mp-rise mp-glass relative min-h-72 overflow-hidden rounded-3xl"
       onPointerDown={() => {
         timer.current = window.setTimeout(() => onExplain(card), 480);
       }}
@@ -76,6 +71,6 @@ export function MomentCardView({
           </Button>
         </div>
       </div>
-    </motion.article>
+    </article>
   );
 }

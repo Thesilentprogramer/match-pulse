@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { useReducedMotion } from "framer-motion";
+import { usePrefersReducedMotion } from "@/hooks/use-reduced-motion";
 
 export function NumberTicker({
   value,
@@ -12,7 +12,7 @@ export function NumberTicker({
   className?: string;
   format?: (value: number) => string;
 }) {
-  const reduce = useReducedMotion();
+  const reduce = usePrefersReducedMotion();
   const [display, setDisplay] = useState(value);
   const from = useRef(value);
 

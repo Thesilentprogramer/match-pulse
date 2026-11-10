@@ -1,20 +1,21 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Clapperboard, Download, Share2 } from "lucide-react";
+import dynamic from "next/dynamic";
+import { Clapperboard } from "lucide-react";
 import { toast } from "sonner";
-import { Player, type PlayerRef } from "@remotion/player";
 import { buildMatchSummary, summaryCacheKey, withSpokenDurations, type SummaryFilm } from "@/domain/summary";
 import { MP4_UNAVAILABLE_MESSAGE } from "@/lib/host";
-import { SummaryFilm as SummaryVideo } from "@/remotion/SummaryFilm";
-import { summaryDurationFrames } from "@/remotion/summary-clock";
-import { STORY_FPS } from "@/remotion/timing";
 import { useMatchStore } from "@/state/match-store";
-import { browserCanSpeak, cancelSpeechSynthesis, primeSpeechSynthesis, useSummarySpeech } from "@/components/summary-speech";
-import { MusicPlayerCard } from "@/components/audio/music-player-card";
+import { browserCanSpeak, cancelSpeechSynthesis, primeSpeechSynthesis } from "@/components/summary-voice";
 import { SpinLoader } from "@/components/loaders/spin-loader";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+
+const SummaryStage = dynamic(() => import("@/components/summary-stage").then((mod) => mod.SummaryStage), {
+  ssr: false,
+  loading: () => <div className="h-[min(52dvh,420px)] min-h-[36rem] rounded-2xl bg-black" aria-busy="true" aria-label="Loading the summary" />,
+});
 
 type CachedSummary = { film: SummaryFilm; voice: string; mp4: boolean };
 
@@ -23,7 +24,6 @@ const cache = new Map<string, CachedSummary>();
 type Phase = "read" | "voice" | "ready" | "error";
 
 export function MatchSummaryButton() {
-  const playerRef = useRef<PlayerRef>(null);
   const [open, setOpen] = useState(false);
   const [phase, setPhase] = useState<Phase>("read");
   const [film, setFilm] = useState<SummaryFilm | null>(null);
@@ -31,31 +31,10 @@ export function MatchSummaryButton() {
   const [mp4, setMp4] = useState(true);
   const [note, setNote] = useState<string | null>(null);
   const [job, setJob] = useState<{ id: string; progress: number } | null>(null);
-  const [progress, setProgress] = useState(0);
-  const [playing, setPlaying] = useState(true);
   const opening = useRef(false);
   const [language, setLanguage] = useState<"en-IN" | "hi-IN">("en-IN");
-  const speakInBrowser = open && phase === "ready" && voice === "browser" && Boolean(film?.scenes.every((scene) => !scene.audioSrc));
-  useSummarySpeech(playerRef, film?.scenes ?? null, speakInBrowser);
 
   useEffect(() => () => cancelSpeechSynthesis(), []);
-
-  useEffect(() => {
-    const player = playerRef.current;
-    if (!open || !film || !player) return;
-    const duration = Math.max(1, summaryDurationFrames(film.scenes));
-    const onFrame = () => setProgress((player.getCurrentFrame() / duration) * 100);
-    const onPlay = () => setPlaying(true);
-    const onPause = () => setPlaying(false);
-    player.addEventListener("frameupdate", onFrame);
-    player.addEventListener("play", onPlay);
-    player.addEventListener("pause", onPause);
-    return () => {
-      player.removeEventListener("frameupdate", onFrame);
-      player.removeEventListener("play", onPlay);
-      player.removeEventListener("pause", onPause);
-    };
-  }, [open, film]);
 
   async function openSummary() {
     if (opening.current) return;
@@ -123,13 +102,6 @@ export function MatchSummaryButton() {
     } finally {
       opening.current = false;
     }
-  }
-
-  function nudge(frames: number) {
-    const player = playerRef.current;
-    if (!player || !film) return;
-    const duration = Math.max(1, summaryDurationFrames(film.scenes));
-    player.seekTo(Math.min(duration - 1, Math.max(0, player.getCurrentFrame() + frames)));
   }
 
   async function download() {
@@ -230,64 +202,20 @@ export function MatchSummaryButton() {
             </p>
           ) : null}
           {phase === "ready" && film ? (
-            <div className="grid gap-3">
-              <MusicPlayerCard
-                title="Match Summary"
-                artist={film.competition}
-                album={note ?? "Spoken from the balls already in"}
-                progress={progress}
-                currentTime={clock((progress / 100) * summaryDurationFrames(film.scenes))}
-                duration={clock(summaryDurationFrames(film.scenes))}
-                playing={playing}
-                onPlayingChange={(next) => {
-                  const player = playerRef.current;
-                  if (!player) return;
-                  if (next) void player.play();
-                  else player.pause();
-                }}
-                onPrevious={() => nudge(-STORY_FPS * 3)}
-                onNext={() => nudge(STORY_FPS * 3)}
-                cover={
-                  <div className="h-[min(52dvh,420px)] overflow-hidden bg-black">
-                    <Player
-                      ref={playerRef}
-                      component={SummaryVideo}
-                      inputProps={film}
-                      durationInFrames={Math.max(30, summaryDurationFrames(film.scenes))}
-                      compositionWidth={1080}
-                      compositionHeight={1920}
-                      fps={STORY_FPS}
-                      style={{ width: "100%", height: "100%" }}
-                      autoPlay
-                    />
-                  </div>
-                }
-              />
-              <div className="flex gap-2">
-                {mp4 ? (
-                  <Button type="button" onClick={() => void download()} disabled={Boolean(job)}>
-                    <Download />
-                    {job ? `Rendering ${Math.round(job.progress * 100)}%` : "Download"}
-                  </Button>
-                ) : (
-                  <p className="self-center text-xs text-white/55">{MP4_UNAVAILABLE_MESSAGE}</p>
-                )}
-                <Button type="button" variant="secondary" onClick={() => void share()}>
-                  <Share2 />
-                  Share
-                </Button>
-              </div>
-            </div>
+            <SummaryStage
+              film={film}
+              note={note}
+              mp4={mp4}
+              job={job}
+              browserVoice={voice === "browser" && film.scenes.every((scene) => !scene.audioSrc)}
+              onDownload={() => void download()}
+              onShare={() => void share()}
+            />
           ) : null}
         </DialogContent>
       </Dialog>
     </>
   );
-}
-
-function clock(frames: number): string {
-  const sec = Math.max(0, Math.floor(frames / STORY_FPS));
-  return `${Math.floor(sec / 60)}:${String(sec % 60).padStart(2, "0")}`;
 }
 
 function voiceNote(voice: string): string | null {

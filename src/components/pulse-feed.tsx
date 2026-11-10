@@ -28,9 +28,8 @@ export function PulseFeed({
       </div>
       {view.ready && view.ballCount === 0 ? (
         <div className="grid gap-3" aria-busy="true">
-          <Skeleton className="h-36 w-full" />
-          <Skeleton className="h-36 w-full" />
-          <Skeleton className="h-36 w-full" />
+          <Skeleton className="h-72 w-full" />
+          <Skeleton className="h-72 w-full" />
         </div>
       ) : null}
       {cards.length === 0 && view.ballCount > 0 ? (

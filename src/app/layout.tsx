@@ -10,21 +10,28 @@ import "./globals.css";
 const outfit = Outfit({
   subsets: ["latin"],
   variable: "--font-outfit",
-  weight: ["400", "500", "600", "700"],
-  display: "swap",
+  weight: ["400", "600"],
+  display: "optional",
+  adjustFontFallback: true,
+  preload: true,
 });
 
 const display = Barlow_Condensed({
   subsets: ["latin"],
   variable: "--font-display-face",
-  weight: ["500", "600", "700"],
-  display: "swap",
+  weight: ["700"],
+  display: "optional",
+  adjustFontFallback: true,
+  preload: true,
+  fallback: ["Arial Narrow", "Arial", "sans-serif"],
 });
 
 const mono = Geist_Mono({
   subsets: ["latin"],
   variable: "--font-geist-mono",
-  display: "swap",
+  display: "optional",
+  adjustFontFallback: true,
+  preload: false,
 });
 
 export const metadata: Metadata = {

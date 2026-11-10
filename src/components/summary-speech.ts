@@ -3,23 +3,7 @@
 import { useEffect, type RefObject } from "react";
 import type { PlayerRef } from "@remotion/player";
 import { nextNarrationScene } from "@/remotion/summary-clock";
-
-/** A click has to unlock speech before the voice request returns. */
-export function primeSpeechSynthesis(): void {
-  if (typeof window === "undefined" || !window.speechSynthesis) return;
-  const primer = new SpeechSynthesisUtterance(" ");
-  primer.volume = 0;
-  window.speechSynthesis.speak(primer);
-}
-
-export function cancelSpeechSynthesis(): void {
-  if (typeof window === "undefined" || !window.speechSynthesis) return;
-  window.speechSynthesis.cancel();
-}
-
-export function browserCanSpeak(): boolean {
-  return typeof window !== "undefined" && "speechSynthesis" in window;
-}
+import { browserCanSpeak } from "@/components/summary-voice";
 
 /**
  * Speaks the scene that just came on screen, and stops when playback pauses

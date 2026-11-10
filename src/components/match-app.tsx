@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import dynamic from "next/dynamic";
 import { Clapperboard, MessageCircle, Radio, Swords, Users, WifiOff } from "lucide-react";
 import { SegmentedControl, SegmentedControlItem } from "@/components/base/segmented-control/segmented-control";
 import { Skeleton } from "@/components/base/skeleton/skeleton";
@@ -10,15 +11,16 @@ import { toast } from "sonner";
 import type { Voice } from "@/domain/grounding";
 import { buildMatchStory, type MatchStory } from "@/domain/story";
 import type { MomentCard } from "@/domain/types";
-import { CompanionPanel } from "@/components/companion-panel";
 import { FantasyCard } from "@/components/fantasy-card";
-import { OverWar } from "@/components/over-war";
-import { PodPanel } from "@/components/pod-panel";
 import { PulseFeed } from "@/components/pulse-feed";
 import { ReviewerDock } from "@/components/reviewer-dock";
 import { Scorebug } from "@/components/scorebug";
 import { MatchSummaryButton } from "@/components/match-summary";
-import { StoryReel } from "@/components/story-reel";
+
+const CompanionPanel = dynamic(() => import("@/components/companion-panel").then((mod) => mod.CompanionPanel), { ssr: false });
+const OverWar = dynamic(() => import("@/components/over-war").then((mod) => mod.OverWar), { ssr: false });
+const PodPanel = dynamic(() => import("@/components/pod-panel").then((mod) => mod.PodPanel), { ssr: false });
+const StoryReel = dynamic(() => import("@/components/story-reel").then((mod) => mod.StoryReel), { ssr: false });
 import { loadMatchRecord, matchChoices } from "@/domain/matches";
 import type { InningsMeta } from "@/domain/types";
 import type { CatalogMatch } from "@/providers/live/types";
@@ -57,8 +59,8 @@ export function MatchApp() {
     matchChoices().map((choice) => ({ id: choice.id, label: choice.label, badge: "demo" as const, live: true, detail: "" })),
   );
   const [catalogNote, setCatalogNote] = useState<string | null>(null);
-  const [catalogReady, setCatalogReady] = useState(false);
   const picked = useRef(false);
+  const desktop = useDesktopColumns();
   const holdDemo = useRef(typeof window !== "undefined" && window.localStorage.getItem("mp-hold-demo") === "1");
   useEffect(() => {
     let stop = false;
@@ -84,17 +86,13 @@ export function MatchApp() {
         }
       } catch {
         /* the demo list stays */
-      } finally {
-        if (!stop) setCatalogReady(true);
       }
     }
     void load();
-    const giveUp = window.setTimeout(() => setCatalogReady(true), 4000);
     const timer = setInterval(() => void load(), 30_000);
     return () => {
       stop = true;
       clearInterval(timer);
-      clearTimeout(giveUp);
     };
   }, []);
   const [voice, setVoice] = useState<Voice>("english");
@@ -123,17 +121,21 @@ export function MatchApp() {
         <div className="flex min-w-0 items-start gap-3">
           <PulseMark />
           <div className="min-w-0 flex-1">
-            <div className="flex flex-wrap items-center gap-2">
-              <h1 className="mp-display text-3xl leading-none">Match Pulse</h1>
-              <SourceBadge badge={feedBadge} />
-              <StatusPill status={holdFeed ? "scorecard" : status} />
-            </div>
-            <p className="mt-1 text-sm text-white/80">
+            <h1 className="mp-display h-9 text-3xl leading-none">Match Pulse</h1>
+            <p className="h-5 truncate text-sm text-white/80">
               {meta ? `${meta.competition}${meta.city ? ` · ${meta.city}` : ""}` : "Live score, the chase, and a companion that only quotes balls you have seen."}
             </p>
+            <div className="mt-1 flex h-6 items-center gap-2 overflow-x-auto">
+              <span className="shrink-0">
+                <SourceBadge badge={feedBadge} />
+              </span>
+              <span className="shrink-0">
+                <StatusPill status={holdFeed ? "scorecard" : status} />
+              </span>
+            </div>
           </div>
         </div>
-        <div id="match-choice" className="flex gap-2 overflow-x-auto pb-1" role="tablist" aria-label="Matches">
+        <div id="match-choice" className="flex h-10 items-center gap-2 overflow-x-auto" role="tablist" aria-label="Matches">
           {choices.map((choice) => {
             const selected = choice.id === matchId;
             return (
@@ -157,7 +159,7 @@ export function MatchApp() {
             );
           })}
         </div>
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="flex h-11 items-center gap-2 overflow-x-auto">
           <MatchSummaryButton key={matchId} />
           <Button type="button" size="sm" variant="secondary" className="h-9 rounded-full" onClick={openStory}>
             <Clapperboard />
@@ -166,18 +168,21 @@ export function MatchApp() {
           {feedBadge === "demo" ? <ReviewerDock /> : null}
         </div>
       </header>
-      {catalogNote || feedNote ? (
-        <p role="status" className="mb-3 rounded-2xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white/75">
-          {feedNote ?? catalogNote}
-          {hitsToday !== null ? ` CricAPI ${hitsToday}/${hitsLimit ?? 100} hits today.` : ""}
-        </p>
-      ) : null}
-      {status === "reconnecting" || status === "error" ? (
-        <p role="alert" className="mb-3 flex items-center gap-2 rounded-2xl border border-[var(--mp-coral)]/40 bg-[var(--mp-coral)]/10 px-3 py-2 text-sm">
-          <WifiOff className="size-4 shrink-0" />
-          {detail ?? "The ground link dropped."}
-        </p>
-      ) : null}
+      <div className="mb-3 h-12">
+        {status === "reconnecting" || status === "error" ? (
+          <p role="alert" className="flex h-12 items-center gap-2 overflow-hidden rounded-2xl border border-[var(--mp-coral)]/40 bg-[var(--mp-coral)]/10 px-3 text-sm">
+            <WifiOff className="size-4 shrink-0" />
+            <span className="truncate">{detail ?? "The ground link dropped."}</span>
+          </p>
+        ) : catalogNote || feedNote ? (
+          <p role="status" className="flex h-12 items-center overflow-hidden rounded-2xl border border-white/10 bg-white/5 px-3 text-sm text-white/75">
+            <span className="line-clamp-2">
+              {feedNote ?? catalogNote}
+              {hitsToday !== null ? ` CricAPI ${hitsToday}/${hitsLimit ?? 100} hits today.` : ""}
+            </span>
+          </p>
+        ) : null}
+      </div>
       {card ? (
         <section className="mb-4 rounded-3xl border border-white/10 bg-black/30 p-4" aria-label="Scorecard">
           <p className="text-xs tracking-[0.2em] text-[var(--mp-accent)]">SCORECARD</p>
@@ -192,7 +197,7 @@ export function MatchApp() {
         </section>
       ) : null}
       <div className={card ? "hidden" : tab === "ask" ? "hidden lg:block" : "block"}>
-      {catalogReady ? <Scorebug meta={meta} view={view} burst={burst} /> : <Skeleton className="mt-3 h-[22rem] w-full" />}
+      <Scorebug meta={meta} view={view} burst={burst} />
       <div className="mt-3 flex items-center justify-between gap-3">
         <p className="text-xs text-white/75">
           Pulse Points are free, not purchasable, and not redeemable.
@@ -211,17 +216,23 @@ export function MatchApp() {
             {fantasyOn ? <FantasyCard view={view} /> : null}
             {!view.ready ? <FeedSkeleton /> : <PulseFeed view={view} voice={voice} onExplain={setExplain} />}
           </div>
-          <div className={tab === "ask" ? "block" : "hidden lg:block"}>
-            <CompanionPanel key={matchId} seenThroughSeq={view.latestCard?.seq ?? 0} voice={voice} matchId={matchId} />
-          </div>
+          {tab === "ask" || desktop ? (
+            <div className={tab === "ask" ? "block" : "hidden lg:block"}>
+              <CompanionPanel key={matchId} seenThroughSeq={view.latestCard?.seq ?? 0} voice={voice} matchId={matchId} />
+            </div>
+          ) : null}
         </div>
         <div className={cn("grid gap-4 xl:contents", tab === "pulse" && "max-lg:hidden")}>
-          <div className={tab === "war" ? "block" : "hidden lg:block"}>
-            <OverWar view={view} />
-          </div>
-          <div className={tab === "pod" ? "block" : "hidden lg:block"}>
-            <PodPanel view={view} />
-          </div>
+          {tab === "war" || desktop ? (
+            <div className={tab === "war" ? "block" : "hidden lg:block"}>
+              <OverWar view={view} />
+            </div>
+          ) : null}
+          {tab === "pod" || desktop ? (
+            <div className={tab === "pod" ? "block" : "hidden lg:block"}>
+              <PodPanel view={view} />
+            </div>
+          ) : null}
         </div>
       </div>
       <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-white/10 bg-[var(--mp-ink)]/95 px-3 py-2 backdrop-blur-md lg:hidden" aria-label="Sections">
@@ -297,6 +308,21 @@ function VoiceSwitch({ voice, onChange }: { voice: Voice; onChange: (voice: Voic
   );
 }
 
+function useDesktopColumns(): boolean {
+  const [wide, setWide] = useState(false);
+  useEffect(() => {
+    const media = window.matchMedia("(min-width: 1024px)");
+    const apply = () => setWide(media.matches);
+    media.addEventListener("change", apply);
+    const frame = requestAnimationFrame(apply);
+    return () => {
+      cancelAnimationFrame(frame);
+      media.removeEventListener("change", apply);
+    };
+  }, []);
+  return wide;
+}
+
 function PulseMark() {
   return (
     <span className="grid size-11 place-items-center rounded-2xl bg-black/40 shadow-[var(--mp-elev-1)]" aria-hidden>
@@ -362,7 +388,7 @@ function stubMeta(id: string, label: string): InningsMeta {
 function StatusPill({ status }: { status: string }) {
   const live = status === "live" || status === "ended";
   return (
-    <span data-testid="feed-status" className="mp-kicker inline-flex items-center gap-1.5 text-white/75">
+    <span data-testid="feed-status" className="mp-kicker inline-flex items-center gap-1.5 whitespace-nowrap text-white/75">
       <span className={`size-1.5 rounded-full ${live ? "bg-[var(--mp-lime)]" : "bg-[var(--mp-gold)]"}`} />
       {status === "live" ? "In play" : status === "connecting" ? "Linking" : status === "reconnecting" ? "Reconnecting" : status === "scorecard" ? "Final" : status === "ended" ? "Final" : status === "error" ? "No link" : status}
     </span>
@@ -372,8 +398,8 @@ function StatusPill({ status }: { status: string }) {
 function FeedSkeleton() {
   return (
     <div className="grid gap-3" aria-busy="true" aria-label="Loading the balls">
-      <Skeleton className="h-40 w-full" />
-      <Skeleton className="h-40 w-full" />
+      <Skeleton className="h-72 w-full" />
+      <Skeleton className="h-72 w-full" />
     </div>
   );
 }

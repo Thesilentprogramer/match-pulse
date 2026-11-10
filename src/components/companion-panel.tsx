@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 
 const PROMPTS = ["What does the chase need?", "Why is the win chance there?", "Explain DLS", "Who is batting?"];
 
-export function CompanionPanel({ seenThroughSeq, voice }: { seenThroughSeq: number; voice: Voice }) {
+export function CompanionPanel({ seenThroughSeq, voice, matchId }: { seenThroughSeq: number; voice: Voice; matchId: string }) {
   const [question, setQuestion] = useState("");
   const [messages, setMessages] = useState<{ role: "you" | "pulse"; text: string; source?: string }[]>([]);
   const [busy, setBusy] = useState(false);
@@ -22,7 +22,7 @@ export function CompanionPanel({ seenThroughSeq, voice }: { seenThroughSeq: numb
       const response = await fetch("/api/ai/companion", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ question: trimmed, seenThroughSeq, voice }),
+        body: JSON.stringify({ question: trimmed, seenThroughSeq, voice, matchId }),
       });
       const source = response.headers.get("x-pulse-source") ?? "template";
       const reader = response.body?.getReader();

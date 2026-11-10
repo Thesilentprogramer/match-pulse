@@ -275,6 +275,16 @@ An optional director (`OPENAI_API_KEY`, `AI_GATEWAY_API_KEY`, or `NVIDIA_API_KEY
 
 Match Summary is the one-click film. `buildMatchSummary` runs `buildMatchStory` and `buildShotPlan` for whichever match is loaded, maps each shot to a pencil scene, and writes a narration line that must pass `validateGroundedAnswer`. `TtsProvider` speaks it: espeak when the binary is installed, OpenAI TTS when a key is set and espeak is not, otherwise silence with the captions still on screen. Scene length follows the spoken wav. The Remotion `SummaryFilm` composition draws the stick figures and mixes the audio, so the in-app Player and a Node `renderMedia` download are the same film. Serverless hosts cannot run that render; the Player is the summary there. A second click is instant because the film is cached on the match id and the last ball received.
 
+## Live sources
+
+The recorded Harbor innings is still a `MatchDataSource`. A live match is another implementation of that same port. Selectors, the companion, Match Story, and Match Summary read the delivery log and do not know which adapter filled it.
+
+Order is Cricbuzz, then CricAPI, then the demo fixtures. One shared poller per match serves every SSE client from the cache. Cricbuzz is polled every 15–30 seconds while a match is in progress, with backoff, a browser user-agent, and an 8 second timeout. CricAPI is not called while Cricbuzz is healthy. When it is the source, remaining free-tier hits (100 a day, 4 held back) are spread across a four-hour live window, about 150 seconds when the score is moving and slower when it is not, on a break, or once the quota is spent.
+
+Cricbuzz's current site is a Next.js app. The old CSS classes a BeautifulSoup scraper used are gone. The live list and the match page embed the JSON the page itself renders, including `matchCommentary` with ball text, events, and `ballMetric`. We parse that. Recent commentary becomes real deliveries. Runs and wickets that happened before that window become one scoreboard passage (`feed: "scoreboard"`, `boardSpan` greater than 1) so the summed log matches the scoreboard without inventing the missing shots. If that payload is missing, the poller logs the failure and tries CricAPI's `currentMatches` score lines the same way: deltas, marked as over summaries. If both fail, the demo fixtures stay in the picker and the screen keeps the last good log, or the Harbor chase, with a note.
+
+This is an unofficial read of Cricbuzz. Their markup can change, a datacenter IP can be blocked, and their terms restrict automated access. The port is the point: a licensed feed replaces `CricbuzzDataSource` without touching the domain. CricAPI is the licensed-shaped fallback already wired (`CRICAPI_KEY`, server only). It is score-level and about a minute behind. Ball-by-ball there is paid, so we do not depend on it.
+
 ## What is deliberately thin
 
 The pod is five seeded bots plus you. There is no account. The fantasy XI is a sample, not *your* team. Economy and strike-rate bands update at the end of an over. Extras are in the type and the reducer (a wide is tested) and absent from this particular innings, so the story stays a legal ball at a time. None of those are load-bearing. The ports around them are.

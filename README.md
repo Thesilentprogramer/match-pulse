@@ -94,8 +94,11 @@ Copy `.env.example` to `.env.local`. Every variable is optional.
 | `MATCH_PULSE_MODEL` | Gateway model id |
 | `NVIDIA_API_KEY` | Optional rewrite of anime shot prompts |
 | `HF_TOKEN` | Reserved. The video port does not call out yet |
+| `CRICAPI_KEY` | CricketData.org fallback. Server only. Free tier is 100 hits a day |
 
 Speech with no key: install `espeak-ng`. Match Summary still plays with captions if neither espeak nor an OpenAI key is present.
+
+Live scores try Cricbuzz first (unofficial, polled on the server), then CricAPI if `CRICAPI_KEY` is set, then the recorded demo. The badge says which source is on screen.
 
 ## Where to read
 

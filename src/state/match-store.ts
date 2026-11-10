@@ -28,6 +28,10 @@ export interface MatchStore {
   holdFeed: boolean;
   card: ScorecardRecap | null;
   matchId: string;
+  feedBadge: "cricbuzz" | "cricapi" | "demo";
+  feedNote: string | null;
+  hitsToday: number | null;
+  hitsLimit: number | null;
   uiEpoch: number;
   view: MatchView;
   setStatus: (status: FeedStatus, detail?: string) => void;
@@ -44,6 +48,8 @@ export interface MatchStore {
   setPredictionLines: (lines: { kind: MarketKind; prompt: string; detail: string }[] | null) => void;
   seekToOver: (overNumber: number) => void;
   loadMatch: (input: { id: string; live: boolean; meta: InningsMeta; deliveries: Delivery[]; card: ScorecardRecap | null }) => void;
+  replaceLog: (deliveries: Delivery[]) => void;
+  setFeedSource: (input: { badge: MatchStore["feedBadge"]; note: string | null; hitsToday: number | null; hitsLimit: number | null }) => void;
   recompute: () => void;
 }
 
@@ -90,6 +96,10 @@ export const useMatchStore = create<MatchStore>((set, get) => ({
   holdFeed: false,
   card: null,
   matchId: "harbor-cup-final",
+  feedBadge: "demo",
+  feedNote: null,
+  hitsToday: null,
+  hitsLimit: null,
   uiEpoch: 0,
   view: initialView,
   setStatus: (status, detail) => set({ status, statusDetail: detail ?? null }),
@@ -148,9 +158,22 @@ export const useMatchStore = create<MatchStore>((set, get) => ({
     set({ predictionLines: lines });
     get().recompute();
   },
+  replaceLog: (deliveries) => {
+    if (get().holdFeed) return;
+    set({ deliveries: [...deliveries] });
+    get().recompute();
+  },
+  setFeedSource: (input) =>
+    set({
+      feedBadge: input.badge,
+      feedNote: input.note,
+      hitsToday: input.hitsToday,
+      hitsLimit: input.hitsLimit,
+    }),
   loadMatch: (input) => {
     set({
       matchId: input.id,
+      feedBadge: input.id.startsWith("cb-") ? "cricbuzz" : input.id.startsWith("cric-") ? "cricapi" : "demo",
       holdFeed: !input.live,
       card: input.card,
       meta: input.meta,

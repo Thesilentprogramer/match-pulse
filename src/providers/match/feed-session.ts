@@ -22,6 +22,14 @@ export interface FeedSessionDeps {
   gapMs?: number;
   onMeta: (meta: InningsMeta) => void;
   onDelivery: (delivery: Delivery) => void;
+  onSync?: (body: {
+    deliveries: Delivery[];
+    meta?: InningsMeta;
+    badge?: "cricbuzz" | "cricapi" | "demo";
+    note?: string | null;
+    hitsToday?: number | null;
+    hitsLimit?: number | null;
+  }) => void;
   onStatus: (status: FeedStatus, detail?: string) => void;
 }
 
@@ -137,6 +145,11 @@ export class FeedSession {
         for (const message of consumed.messages) {
           if (message.event === "meta") this.deps.onMeta(JSON.parse(message.data) as InningsMeta);
           if (message.event === "delivery") this.ingest(JSON.parse(message.data) as Delivery);
+          if (message.event === "sync") {
+            const body = JSON.parse(message.data) as { deliveries: Delivery[]; meta?: InningsMeta };
+            this.deps.onSync?.(body);
+            this.afterSeq = body.deliveries.at(-1)?.seq ?? this.afterSeq;
+          }
           if (message.event === "end") sawEnd = true;
         }
       }

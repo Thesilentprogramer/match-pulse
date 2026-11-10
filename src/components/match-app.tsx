@@ -17,6 +17,8 @@ import { Scorebug } from "@/components/scorebug";
 import { MatchSummaryButton } from "@/components/match-summary";
 import { StoryReel } from "@/components/story-reel";
 import { loadMatchRecord, matchChoices } from "@/domain/matches";
+import type { InningsMeta } from "@/domain/types";
+import type { CatalogMatch } from "@/providers/live/types";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -41,10 +43,43 @@ export function MatchApp() {
   const toggleFantasy = useMatchStore((state) => state.toggleFantasy);
   const provider = useMatchStore((state) => state.provider);
   const matchId = useMatchStore((state) => state.matchId);
+  const feedBadge = useMatchStore((state) => state.feedBadge);
+  const feedNote = useMatchStore((state) => state.feedNote);
+  const hitsToday = useMatchStore((state) => state.hitsToday);
+  const hitsLimit = useMatchStore((state) => state.hitsLimit);
   const card = useMatchStore((state) => state.card);
   const holdFeed = useMatchStore((state) => state.holdFeed);
   const loadMatch = useMatchStore((state) => state.loadMatch);
   const [tab, setTab] = useState<Tab>("pulse");
+  const [choices, setChoices] = useState<CatalogMatch[]>(() =>
+    matchChoices().map((choice) => ({ id: choice.id, label: choice.label, badge: "demo" as const, live: true, detail: "" })),
+  );
+  const [catalogNote, setCatalogNote] = useState<string | null>(null);
+  useEffect(() => {
+    let stop = false;
+    async function load() {
+      try {
+        const response = await fetch("/api/matches", { cache: "no-store" });
+        if (!response.ok) return;
+        const body = (await response.json()) as { note?: string | null; matches?: CatalogMatch[]; hitsToday?: number | null; hitsLimit?: number | null };
+        if (stop || !body.matches?.length) return;
+        setChoices(body.matches);
+        setCatalogNote(body.note ?? null);
+        if (typeof body.hitsToday === "number") {
+          const state = useMatchStore.getState();
+          state.setFeedSource({ badge: state.feedBadge, note: state.feedNote, hitsToday: body.hitsToday, hitsLimit: body.hitsLimit ?? null });
+        }
+      } catch {
+        /* the demo list stays */
+      }
+    }
+    void load();
+    const timer = setInterval(() => void load(), 30_000);
+    return () => {
+      stop = true;
+      clearInterval(timer);
+    };
+  }, []);
   const [voice, setVoice] = useState<Voice>("english");
   const [explain, setExplain] = useState<MomentCard | null>(null);
   const [story, setStory] = useState<MatchStory | null>(null);
@@ -78,20 +113,32 @@ export function MatchApp() {
           </div>
         </div>
         <div className="flex items-center gap-2">
+          <SourceBadge badge={feedBadge} />
           <StatusPill status={holdFeed ? "scorecard" : status} />
           <label className="sr-only" htmlFor="match-choice">
             Match
           </label>
           <select
             id="match-choice"
-            className="h-9 rounded-full border border-white/15 bg-black/40 px-3 text-sm"
-            value={matchId}
+            className="h-9 max-w-[220px] rounded-full border border-white/15 bg-black/40 px-3 text-sm"
+            value={choices.some((choice) => choice.id === matchId) ? matchId : choices[0]?.id}
             onChange={(event) => {
-              const next = loadMatchRecord(event.target.value);
-              loadMatch({ id: next.id, live: next.live, meta: next.meta, deliveries: next.deliveries, card: next.card });
+              const next = choices.find((choice) => choice.id === event.target.value);
+              if (!next || next.badge === "demo") {
+                const loaded = loadMatchRecord(event.target.value);
+                loadMatch({ id: loaded.id, live: loaded.live, meta: loaded.meta, deliveries: loaded.deliveries, card: loaded.card });
+                return;
+              }
+              loadMatch({
+                id: next.id,
+                live: true,
+                meta: next.meta ?? stubMeta(next.id, next.label),
+                deliveries: [],
+                card: null,
+              });
             }}
           >
-            {matchChoices().map((choice) => (
+            {choices.map((choice) => (
               <option key={choice.id} value={choice.id}>
                 {choice.label}
               </option>
@@ -105,6 +152,12 @@ export function MatchApp() {
           <ReviewerDock />
         </div>
       </header>
+      {catalogNote || feedNote ? (
+        <p role="status" className="mb-3 rounded-2xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white/75">
+          {feedNote ?? catalogNote}
+          {hitsToday !== null ? ` CricAPI ${hitsToday}/${hitsLimit ?? 100} hits today.` : ""}
+        </p>
+      ) : null}
       {status === "reconnecting" || status === "error" ? (
         <p role="alert" className="mb-3 flex items-center gap-2 rounded-2xl border border-[var(--mp-coral)]/40 bg-[var(--mp-coral)]/10 px-3 py-2 text-sm">
           <WifiOff className="size-4 shrink-0" />
@@ -145,7 +198,7 @@ export function MatchApp() {
             {!view.ready ? <FeedSkeleton /> : <PulseFeed view={view} voice={voice} onExplain={setExplain} />}
           </div>
           <div className={tab === "ask" ? "block" : "hidden lg:block"}>
-            <CompanionPanel seenThroughSeq={view.latestCard?.seq ?? 0} voice={voice} />
+            <CompanionPanel seenThroughSeq={view.latestCard?.seq ?? 0} voice={voice} matchId={matchId} />
           </div>
         </div>
         <div className={cn("grid gap-4 xl:contents", tab === "pulse" && "max-lg:hidden")}>
@@ -246,6 +299,39 @@ function PulseMark() {
       </svg>
     </span>
   );
+}
+
+function SourceBadge({ badge }: { badge: "cricbuzz" | "cricapi" | "demo" }) {
+  const label = badge === "cricbuzz" ? "LIVE Cricbuzz" : badge === "cricapi" ? "DELAYED CricAPI" : "DEMO";
+  return (
+    <span data-testid="source-badge" className="mp-kicker rounded-full border border-white/15 px-2 py-1 text-[0.65rem] text-white/70">
+      {label}
+    </span>
+  );
+}
+
+function stubMeta(id: string, label: string): InningsMeta {
+  return {
+    id,
+    competition: label,
+    venue: "Live",
+    city: "",
+    toss: "Waiting for the feed",
+    firstInnings: "",
+    battingTeamId: "live-bat",
+    bowlingTeamId: "live-bowl",
+    target: 100000,
+    balls: 120,
+    teams: [
+      { id: "live-bat", name: label, short: "LIVE", color: "#3ee0b0" },
+      { id: "live-bowl", name: "Opposition", short: "OPP", color: "#ff6a45" },
+    ],
+    players: [],
+    battingOrder: [],
+    overs: [],
+    overStarts: [],
+    fantasy: { name: "No XI on this feed", slots: [] },
+  };
 }
 
 function StatusPill({ status }: { status: string }) {

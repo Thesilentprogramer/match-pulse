@@ -4,6 +4,8 @@ import { clampSpeed } from "@/domain/pacing";
 import { planBroadcast } from "@/providers/match/broadcast";
 import { encodeSse } from "@/providers/match/sse";
 import { SSE_HEARTBEAT_MS, shouldYieldStream, streamYieldAt } from "@/providers/match/stream-budget";
+import { isDemoMatch } from "@/providers/live/demos";
+import { livePoller } from "@/providers/live/poller";
 
 // Cache Components already runs this route on Node.js and rejects `export const runtime`.
 // 300s is the Vercel budget for one connection (Hobby cannot raise it). A full 1× innings
@@ -29,6 +31,8 @@ function sleep(ms: number, signal: AbortSignal): Promise<void> {
 export async function GET(request: Request): Promise<Response> {
   await connection();
   const url = new URL(request.url);
+  const matchId = url.searchParams.get("match") ?? fixtureSource.meta().id;
+  if (!isDemoMatch(matchId)) return liveScoreStream(request, matchId);
   const afterSeq = clampInt(url.searchParams.get("after"), 0, 10_000);
   const burstUntilSeq = clampInt(url.searchParams.get("burst"), 0, 10_000);
   const speed = clampSpeed(Number(url.searchParams.get("speed") ?? "1"));
@@ -90,6 +94,62 @@ export async function GET(request: Request): Promise<Response> {
     },
   });
 
+  return new Response(stream, {
+    headers: {
+      "content-type": "text/event-stream; charset=utf-8",
+      "cache-control": "no-cache, no-transform",
+      connection: "keep-alive",
+      "x-accel-buffering": "no",
+    },
+  });
+}
+
+function liveScoreStream(request: Request, matchId: string): Response {
+  const encoder = new TextEncoder();
+  const startedAt = Date.now();
+  const yieldAt = streamYieldAt(process.env, startedAt);
+  const stream = new ReadableStream<Uint8Array>({
+    async start(controller) {
+      let closed = false;
+      const sendRaw = (chunk: string) => {
+        if (closed || request.signal.aborted) return;
+        controller.enqueue(encoder.encode(chunk));
+      };
+      const close = () => {
+        if (closed) return;
+        closed = true;
+        controller.close();
+      };
+      try {
+        sendRaw(": open\n\n");
+        let last = "";
+        while (!request.signal.aborted && !shouldYieldStream(Date.now(), yieldAt)) {
+          const snap = await livePoller.getMatch(matchId);
+          const body = JSON.stringify({ deliveries: snap.deliveries, meta: snap.meta, badge: snap.badge, note: snap.note, hitsToday: snap.hitsToday, hitsLimit: snap.hitsLimit });
+          if (body !== last) {
+            sendRaw(encodeSse("meta", snap.meta));
+            sendRaw(encodeSse("sync", { deliveries: snap.deliveries, meta: snap.meta, badge: snap.badge, note: snap.note, hitsToday: snap.hitsToday, hitsLimit: snap.hitsLimit }));
+            last = body;
+          }
+          if (snap.ended && body === last) {
+            sendRaw(encodeSse("end", { ok: true }));
+            break;
+          }
+          const wait = Math.max(1000, snap.waitMs || 15_000);
+          let left = wait;
+          while (left > 0 && !request.signal.aborted && !shouldYieldStream(Date.now(), yieldAt)) {
+            const slice = Math.min(SSE_HEARTBEAT_MS, left);
+            await sleep(slice, request.signal);
+            left -= slice;
+            if (left > 0) sendRaw(": ping\n\n");
+          }
+        }
+        close();
+      } catch (error) {
+        if (!closed) controller.error(error);
+      }
+    },
+  });
   return new Response(stream, {
     headers: {
       "content-type": "text/event-stream; charset=utf-8",

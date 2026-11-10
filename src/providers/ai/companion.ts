@@ -2,7 +2,7 @@ import { createOpenAI } from "@ai-sdk/openai";
 import { isStepCount, streamText, tool, type LanguageModel } from "ai";
 import { z } from "zod";
 import { renderCommentary } from "@/domain/commentary";
-import { fixtureSource } from "@/domain/fixture";
+import { fixtureSource, type MatchDataSource } from "@/domain/fixture";
 import {
   allowedNumberTokens,
   answerFromSnapshot,
@@ -20,17 +20,17 @@ export interface CompanionRequest {
   voice: Voice;
 }
 
-export function snapshotForSeq(seenThroughSeq: number): GroundedSnapshot {
-  const deliveries = fixtureSource.deliveries().filter((delivery) => delivery.seq <= seenThroughSeq);
-  return buildGroundedSnapshot(fixtureSource.meta(), deliveries);
+export function snapshotForSeq(seenThroughSeq: number, source: MatchDataSource = fixtureSource): GroundedSnapshot {
+  const deliveries = source.deliveries().filter((delivery) => delivery.seq <= seenThroughSeq);
+  return buildGroundedSnapshot(source.meta(), deliveries);
 }
 
-export function templateCompanionAnswer(input: CompanionRequest): string {
-  return answerFromSnapshot(input.question, snapshotForSeq(input.seenThroughSeq), input.voice);
+export function templateCompanionAnswer(input: CompanionRequest, source: MatchDataSource = fixtureSource): string {
+  return answerFromSnapshot(input.question, snapshotForSeq(input.seenThroughSeq, source), input.voice);
 }
 
-export async function composeCompanionAnswer(input: CompanionRequest): Promise<{ text: string; source: "template" | "model" }> {
-  const snapshot = snapshotForSeq(input.seenThroughSeq);
+export async function composeCompanionAnswer(input: CompanionRequest, source: MatchDataSource = fixtureSource): Promise<{ text: string; source: "template" | "model" }> {
+  const snapshot = snapshotForSeq(input.seenThroughSeq, source);
   const fallback = answerFromSnapshot(input.question, snapshot, input.voice);
   const model = resolveModel();
   if (!model) return { text: fallback, source: "template" };
@@ -57,11 +57,13 @@ export async function composeCommentary(input: {
   seq: number;
   seenThroughSeq: number;
   voice: Voice;
+  source?: MatchDataSource;
 }): Promise<{ line: string; source: "template" | "model" }> {
   const seq = Math.min(input.seq, input.seenThroughSeq);
-  const deliveries = fixtureSource.deliveries().filter((delivery) => delivery.seq <= seq);
-  const snapshot = buildGroundedSnapshot(fixtureSource.meta(), deliveries);
-  const frame = projectInnings(deliveries, fixtureSource.meta()).frames.at(-1);
+  const source = input.source ?? fixtureSource;
+  const deliveries = source.deliveries().filter((delivery) => delivery.seq <= seq);
+  const snapshot = buildGroundedSnapshot(source.meta(), deliveries);
+  const frame = projectInnings(deliveries, source.meta()).frames.at(-1);
   const fallback = frame ? renderCommentary(frame.context, input.voice) : answerFromSnapshot("summary", snapshot, input.voice);
   const model = resolveModel();
   if (!model || !frame) return { line: fallback, source: "template" };

@@ -29,6 +29,7 @@ export function feedUrl(query: {
   speed: number;
   jitter: boolean;
   burstUntilSeq: number;
+  matchId?: string;
 }): string {
   const params = new URLSearchParams({
     after: String(query.afterSeq),
@@ -36,5 +37,6 @@ export function feedUrl(query: {
     jitter: query.jitter ? "1" : "0",
     burst: String(query.burstUntilSeq),
   });
+  if (query.matchId) params.set("match", query.matchId);
   return `/api/match/stream?${params.toString()}`;
 }

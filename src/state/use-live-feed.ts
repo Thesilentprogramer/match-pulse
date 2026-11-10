@@ -32,9 +32,21 @@ export function useLiveFeed(): void {
     const store = useMatchStore.getState();
     const session = new FeedSession({
       transport: new FetchSseTransport(),
-      url: feedUrl,
+      url: (query) => feedUrl({ ...query, matchId: useMatchStore.getState().matchId }),
       onMeta: (meta) => useMatchStore.getState().setMeta(meta),
       onDelivery: (delivery) => useMatchStore.getState().ingest(delivery),
+      onSync: (body) => {
+        if (body.meta) useMatchStore.getState().setMeta(body.meta);
+        useMatchStore.getState().replaceLog(body.deliveries);
+        if (body.badge) {
+          useMatchStore.getState().setFeedSource({
+            badge: body.badge,
+            note: body.note ?? null,
+            hitsToday: body.hitsToday ?? null,
+            hitsLimit: body.hitsLimit ?? null,
+          });
+        }
+      },
       onStatus: (status, detail) => useMatchStore.getState().setStatus(status, detail),
     });
     active = session;

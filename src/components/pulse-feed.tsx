@@ -5,6 +5,7 @@ import type { Voice } from "@/domain/grounding";
 import type { MomentCard } from "@/domain/types";
 import type { MatchView } from "@/domain/selectors";
 import { MomentCardView } from "@/components/moment-card";
+import { Skeleton } from "@/components/base/skeleton/skeleton";
 
 export function PulseFeed({
   view,
@@ -21,15 +22,15 @@ export function PulseFeed({
     <section aria-label="Pulse feed" className="flex flex-col gap-3">
       <div className="flex items-end justify-between gap-3 px-1">
         <div>
-          <h2 className="mp-display text-3xl">Pulse</h2>
-          <p className="text-sm text-white/70">What just happened. Long-press a card for Whisper Mode.</p>
+          <h2 className="mp-display text-3xl">Balls</h2>
+          <p className="text-sm text-white/80">What just happened. Long-press a card for a plain explanation.</p>
         </div>
       </div>
       {view.ready && view.ballCount === 0 ? (
-        <div className="grid gap-3">
-          <Skeleton />
-          <Skeleton />
-          <Skeleton />
+        <div className="grid gap-3" aria-busy="true">
+          <Skeleton className="h-36 w-full" />
+          <Skeleton className="h-36 w-full" />
+          <Skeleton className="h-36 w-full" />
         </div>
       ) : null}
       {cards.length === 0 && view.ballCount > 0 ? (
@@ -44,7 +45,7 @@ export function PulseFeed({
         <div className="mp-glass flex items-center gap-3 rounded-3xl px-4 py-4">
           <Sparkles className="text-[var(--mp-lime)]" />
           <div>
-            <p className="mp-kicker text-white/45">Full time</p>
+            <p className="mp-kicker text-white/75">Full time</p>
             <p className="mp-display text-3xl">{view.equation}</p>
           </div>
         </div>
@@ -53,6 +54,3 @@ export function PulseFeed({
   );
 }
 
-function Skeleton() {
-  return <div className="h-36 animate-pulse rounded-3xl bg-white/5 motion-reduce:animate-none" />;
-}

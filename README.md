@@ -100,6 +100,16 @@ Speech with no key: install `espeak-ng`. Match Summary still plays with captions
 
 Live scores try Cricbuzz first (unofficial, polled on the server), then CricAPI if `CRICAPI_KEY` is set, then the recorded demo. The badge says which source is on screen.
 
+## Interface
+
+The page is a mobile-first scoreboard. These pieces are from open component libraries, kept on the red `#E10000` theme:
+
+- [BoardUI](https://www.boardui.com/components) — `chip`, `status-dot`, `segmented-control`, `progress`, `skeleton`, and `spinner`, installed with `npx boardui add`.
+- [Opensource UI](https://opensourceui.in/) — the music-player card (Match Summary transport) and the spin loader. MIT, copy-paste.
+- [21st.dev](https://21st.dev/@f0rextasy/components/live-badge) — the live badge (blinking dot, mono uppercase label). The registry needs an API key, so the badge is BoardUI's status dot and chip in that shape.
+
+shadcn/ui and Radix stay underneath the dialogs, sheets, and toasts.
+
 ## Where to read
 
 - [Product rationale](docs/PRODUCT_RATIONALE.md) — the post-2025 Dream11 context, the fan problems and the links, what was left out, the compliance note, the metrics we would treat as hypotheses.

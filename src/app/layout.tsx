@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import type { ReactNode } from "react";
 import { Barlow_Condensed, Geist_Mono, Outfit } from "next/font/google";
 import { ThemeProvider } from "next-themes";
+import { DirectionProvider } from "@/components/foundations/direction/direction";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { Toaster } from "@/components/ui/sonner";
 import "./globals.css";
@@ -49,7 +50,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
       <body className="min-h-full">
         <ThemeProvider attribute="class" forcedTheme="dark" enableSystem={false}>
           <TooltipProvider>
-            {children}
+            <DirectionProvider locale="en">{children}</DirectionProvider>
             <Toaster theme="dark" position="top-center" />
           </TooltipProvider>
         </ThemeProvider>

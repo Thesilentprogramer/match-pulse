@@ -5,6 +5,7 @@ import { playerName } from "@/domain/players";
 import type { InningsMeta } from "@/domain/types";
 import type { MatchView } from "@/domain/selectors";
 import { NumberTicker } from "@/components/number-ticker";
+import { ProgressBar } from "@/components/base/progress/progress";
 
 export function Scorebug({
   meta,
@@ -20,6 +21,8 @@ export function Scorebug({
   const bowling = meta?.teams.find((team) => team.id === meta.bowlingTeamId);
   const striker = batterLine(meta, score?.strikerId ?? null, score, true);
   const nonStriker = batterLine(meta, score?.nonStrikerId ?? null, score, false);
+  const noChase = view.equation.startsWith("No target");
+  const statusLine = meta?.firstInnings.replace(/^First innings\.\s*/, "") || view.equation;
 
   return (
     <section
@@ -37,15 +40,15 @@ export function Scorebug({
       ) : null}
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <p className="mp-kicker text-muted-foreground">
-            <span className="mr-2 inline-block size-1.5 rounded-full" style={{ background: batting?.color ?? "var(--mp-teal)" }} />
-            {batting?.name ?? "Harbor Kings"}
-            <span className="mx-2 text-white/35">vs</span>
-            <span className="mr-2 inline-block size-1.5 rounded-full" style={{ background: bowling?.color ?? "var(--mp-coral)" }} />
-            {bowling?.short ?? "LIONS"} {meta ? meta.firstInnings.replace(`${bowling?.name ?? ""} `, "") : "185/6"}
+          <p className="mp-kicker flex min-w-0 items-center gap-2 text-white/75">
+            <span className="size-1.5 shrink-0 rounded-full" style={{ background: batting?.color ?? "var(--mp-teal)" }} />
+            <span className="truncate">{batting?.name ?? "Batting"}</span>
+            <span className="shrink-0 text-white/55">vs</span>
+            <span className="size-1.5 shrink-0 rounded-full" style={{ background: bowling?.color ?? "var(--mp-coral)" }} />
+            <span className="shrink-0">{bowling?.short ?? "OPP"}</span>
           </p>
-          <div className="mt-2 flex items-end gap-3">
-            <p className="mp-display text-6xl text-white tabular-nums sm:text-7xl">
+          <div className="mt-2 flex min-w-0 items-end gap-3">
+            <p className="mp-display text-[clamp(2.75rem,14vw,4.75rem)] text-white tabular-nums">
               {score ? (
                 <>
                   <NumberTicker value={score.runs} />
@@ -57,10 +60,20 @@ export function Scorebug({
             </p>
             <p className="mb-1 font-mono text-sm text-[var(--mp-lime)] tabular-nums">{score?.oversLabel ?? "0.0"}</p>
           </div>
-          <p className="mt-2 max-w-md text-sm text-muted-foreground">{view.equation}</p>
+          <p className="mt-2 max-w-md text-sm text-white/80">{noChase ? statusLine : view.equation}</p>
         </div>
-        <WinDial value={view.winProb} />
+        {noChase ? (
+          <p className="mp-kicker shrink-0 rounded-full border border-white/15 px-2 py-3 text-center text-white/75">Inn.</p>
+        ) : (
+          <WinDial value={view.winProb} />
+        )}
       </div>
+      {noChase ? null : (
+        <div className="mt-4 grid gap-3 sm:grid-cols-[minmax(0,1fr)_140px] sm:items-center">
+          <ProgressBar label="Win chance" value={Math.round(view.winProb * 100)} className="text-[var(--mp-accent)]" />
+          <WinChart series={view.winSeries} />
+        </div>
+      )}
       <dl className="mt-4 grid grid-cols-2 gap-2 text-sm sm:grid-cols-4">
         <Stat label="CRR" value={view.crrLabel} />
         <Stat label="RRR" value={view.rrrLabel} />
@@ -80,14 +93,32 @@ export function Scorebug({
           ))}
         </div>
       ) : null}
+      <OverStrip cards={view.cards} />
     </section>
+  );
+}
+
+function OverStrip({ cards }: { cards: MatchView["cards"] }) {
+  const overs = new Map<string, string>();
+  for (const card of cards) overs.set(card.overLabel, card.headline);
+  const rows = [...overs.entries()].slice(-12);
+  if (rows.length === 0) return null;
+  return (
+    <ol className="mt-4 flex gap-2 overflow-x-auto pb-1" aria-label="Overs">
+      {rows.map(([over, headline]) => (
+        <li key={over} className="min-w-28 shrink-0 rounded-xl bg-black/25 px-2 py-1.5">
+          <p className="mp-kicker text-white/70">{over}</p>
+          <p className="truncate text-xs text-white/85">{headline}</p>
+        </li>
+      ))}
+    </ol>
   );
 }
 
 function Stat({ label, value }: { label: string; value: string }) {
   return (
     <div className="rounded-xl bg-black/25 px-3 py-2">
-      <dt className="mp-kicker text-white/40">{label}</dt>
+      <dt className="mp-kicker text-white/70">{label}</dt>
       <dd className="mt-1 truncate font-medium tabular-nums">{value}</dd>
     </div>
   );
@@ -97,7 +128,9 @@ function batterLine(meta: InningsMeta | null, id: string | null, score: MatchVie
   if (!meta || !id || !score) return "—";
   const card = score.batters[id] ?? { runs: 0, balls: 0, out: false };
   const star = card.out ? "" : strike ? "*" : "";
-  const surname = playerName(meta, id).split(" ").slice(-1)[0] ?? "";
+  const name = playerName(meta, id);
+  if (name.startsWith("Earlier")) return "—";
+  const surname = name.split(" ").slice(-1)[0] ?? "";
   return `${surname} ${card.runs}${star} (${card.balls})`;
 }
 
@@ -107,6 +140,27 @@ function chipColor(chip: string): string {
   if (chip === "4") return "bg-[var(--mp-teal)] text-black";
   if (chip === "0" || chip === "wd") return "bg-white/10 text-white/70";
   return "bg-white/15 text-white";
+}
+
+function WinChart({ series }: { series: number[] }) {
+  const points = series.slice(-48);
+  if (points.length < 2) {
+    return <p className="text-xs text-white/70">Win chance draws itself as balls arrive.</p>;
+  }
+  const width = 140;
+  const height = 36;
+  const path = points
+    .map((value, index) => {
+      const x = (index / (points.length - 1)) * width;
+      const y = height - Math.min(1, Math.max(0, value)) * height;
+      return `${index === 0 ? "M" : "L"}${x.toFixed(1)} ${y.toFixed(1)}`;
+    })
+    .join(" ");
+  return (
+    <svg viewBox={`0 0 ${width} ${height}`} className="h-9 w-full" role="img" aria-label="Win chance across the balls you have seen">
+      <path d={path} fill="none" stroke="var(--mp-accent)" strokeWidth="2" />
+    </svg>
+  );
 }
 
 function WinDial({ value }: { value: number }) {

@@ -1,7 +1,10 @@
 "use client";
 
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Clapperboard, MessageCircle, Radio, Swords, Users, WifiOff } from "lucide-react";
+import { SegmentedControl, SegmentedControlItem } from "@/components/base/segmented-control/segmented-control";
+import { Skeleton } from "@/components/base/skeleton/skeleton";
+import { LiveBadge } from "@/components/live-badge";
 import { cn } from "cn";
 import { toast } from "sonner";
 import type { Voice } from "@/domain/grounding";
@@ -49,12 +52,14 @@ export function MatchApp() {
   const hitsLimit = useMatchStore((state) => state.hitsLimit);
   const card = useMatchStore((state) => state.card);
   const holdFeed = useMatchStore((state) => state.holdFeed);
-  const loadMatch = useMatchStore((state) => state.loadMatch);
   const [tab, setTab] = useState<Tab>("pulse");
   const [choices, setChoices] = useState<CatalogMatch[]>(() =>
     matchChoices().map((choice) => ({ id: choice.id, label: choice.label, badge: "demo" as const, live: true, detail: "" })),
   );
   const [catalogNote, setCatalogNote] = useState<string | null>(null);
+  const [catalogReady, setCatalogReady] = useState(false);
+  const picked = useRef(false);
+  const holdDemo = useRef(typeof window !== "undefined" && window.localStorage.getItem("mp-hold-demo") === "1");
   useEffect(() => {
     let stop = false;
     async function load() {
@@ -63,7 +68,15 @@ export function MatchApp() {
         if (!response.ok) return;
         const body = (await response.json()) as { note?: string | null; matches?: CatalogMatch[]; hitsToday?: number | null; hitsLimit?: number | null };
         if (stop || !body.matches?.length) return;
-        setChoices(body.matches);
+        const ordered = [...body.matches].sort((a, b) => rank(a) - rank(b));
+        setChoices(ordered);
+        if (!holdDemo.current && !picked.current) {
+          const live = ordered.find((match) => match.badge === "cricbuzz" && match.live);
+          if (live) {
+            picked.current = true;
+            applyChoice(live);
+          }
+        }
         setCatalogNote(body.note ?? null);
         if (typeof body.hitsToday === "number") {
           const state = useMatchStore.getState();
@@ -71,13 +84,17 @@ export function MatchApp() {
         }
       } catch {
         /* the demo list stays */
+      } finally {
+        if (!stop) setCatalogReady(true);
       }
     }
     void load();
+    const giveUp = window.setTimeout(() => setCatalogReady(true), 4000);
     const timer = setInterval(() => void load(), 30_000);
     return () => {
       stop = true;
       clearInterval(timer);
+      clearTimeout(giveUp);
     };
   }, []);
   const [voice, setVoice] = useState<Voice>("english");
@@ -95,61 +112,58 @@ export function MatchApp() {
   }
 
   return (
-    <div className="mx-auto min-h-dvh w-full max-w-[1240px] px-3 pt-3 pb-28 lg:px-6 lg:pb-8">
+    <div className="mx-auto min-h-dvh w-full max-w-[1240px] overflow-x-clip px-3 pt-3 pb-28 lg:px-6 lg:pb-8">
       <a href="#pulse" className="sr-only focus:not-sr-only focus:absolute focus:z-50 focus:rounded-md focus:bg-primary focus:px-3 focus:py-2 focus:text-primary-foreground">
         Skip to the pulse
       </a>
       <div className="sr-only" aria-live="polite" aria-atomic="true">
         {announce}
       </div>
-      <header className="mb-3 flex flex-wrap items-center justify-between gap-3">
-        <div className="flex items-center gap-3">
+      <header className="mb-3 grid min-w-0 gap-3">
+        <div className="flex min-w-0 items-start gap-3">
           <PulseMark />
-          <div>
-            <h1 className="mp-display text-3xl leading-none">Match Pulse</h1>
-            <p className="mt-1 text-xs text-muted-foreground">
-              {meta ? `${meta.competition} · ${meta.venue}, ${meta.city}` : "Linking Marina Oval"}
+          <div className="min-w-0 flex-1">
+            <div className="flex flex-wrap items-center gap-2">
+              <h1 className="mp-display text-3xl leading-none">Match Pulse</h1>
+              <SourceBadge badge={feedBadge} />
+              <StatusPill status={holdFeed ? "scorecard" : status} />
+            </div>
+            <p className="mt-1 text-sm text-white/80">
+              {meta ? `${meta.competition}${meta.city ? ` · ${meta.city}` : ""}` : "Live score, the chase, and a companion that only quotes balls you have seen."}
             </p>
           </div>
         </div>
-        <div className="flex items-center gap-2">
-          <SourceBadge badge={feedBadge} />
-          <StatusPill status={holdFeed ? "scorecard" : status} />
-          <label className="sr-only" htmlFor="match-choice">
-            Match
-          </label>
-          <select
-            id="match-choice"
-            className="h-9 max-w-[220px] rounded-full border border-white/15 bg-black/40 px-3 text-sm"
-            value={choices.some((choice) => choice.id === matchId) ? matchId : choices[0]?.id}
-            onChange={(event) => {
-              const next = choices.find((choice) => choice.id === event.target.value);
-              if (!next || next.badge === "demo") {
-                const loaded = loadMatchRecord(event.target.value);
-                loadMatch({ id: loaded.id, live: loaded.live, meta: loaded.meta, deliveries: loaded.deliveries, card: loaded.card });
-                return;
-              }
-              loadMatch({
-                id: next.id,
-                live: true,
-                meta: next.meta ?? stubMeta(next.id, next.label),
-                deliveries: [],
-                card: null,
-              });
-            }}
-          >
-            {choices.map((choice) => (
-              <option key={choice.id} value={choice.id}>
+        <div id="match-choice" className="flex gap-2 overflow-x-auto pb-1" role="tablist" aria-label="Matches">
+          {choices.map((choice) => {
+            const selected = choice.id === matchId;
+            return (
+              <button
+                key={choice.id}
+                type="button"
+                role="tab"
+                aria-selected={selected}
+                title={choice.detail || choice.label}
+                onClick={() => {
+                  picked.current = true;
+                  applyChoice(choice);
+                }}
+                className={`max-w-[14rem] shrink-0 truncate rounded-full border px-3 py-1.5 text-left text-sm ${
+                  selected ? "border-[var(--mp-accent)] bg-[var(--mp-accent)] text-white" : "border-white/15 bg-black/40 text-white/85"
+                }`}
+              >
+                {choice.badge === "cricbuzz" ? "Live · " : choice.badge === "cricapi" ? "Delayed · " : ""}
                 {choice.label}
-              </option>
-            ))}
-          </select>
-          <MatchSummaryButton />
+              </button>
+            );
+          })}
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
+          <MatchSummaryButton key={matchId} />
           <Button type="button" size="sm" variant="secondary" className="h-9 rounded-full" onClick={openStory}>
             <Clapperboard />
             Story
           </Button>
-          <ReviewerDock />
+          {feedBadge === "demo" ? <ReviewerDock /> : null}
         </div>
       </header>
       {catalogNote || feedNote ? (
@@ -178,9 +192,9 @@ export function MatchApp() {
         </section>
       ) : null}
       <div className={card ? "hidden" : tab === "ask" ? "hidden lg:block" : "block"}>
-      <Scorebug meta={meta} view={view} burst={burst} />
+      {catalogReady ? <Scorebug meta={meta} view={view} burst={burst} /> : <Skeleton className="mt-3 h-[22rem] w-full" />}
       <div className="mt-3 flex items-center justify-between gap-3">
-        <p className="text-xs text-white/45">
+        <p className="text-xs text-white/75">
           Pulse Points are free, not purchasable, and not redeemable.
         </p>
         <div className="flex flex-wrap items-center gap-2">
@@ -198,7 +212,7 @@ export function MatchApp() {
             {!view.ready ? <FeedSkeleton /> : <PulseFeed view={view} voice={voice} onExplain={setExplain} />}
           </div>
           <div className={tab === "ask" ? "block" : "hidden lg:block"}>
-            <CompanionPanel seenThroughSeq={view.latestCard?.seq ?? 0} voice={voice} matchId={matchId} />
+            <CompanionPanel key={matchId} seenThroughSeq={view.latestCard?.seq ?? 0} voice={voice} matchId={matchId} />
           </div>
         </div>
         <div className={cn("grid gap-4 xl:contents", tab === "pulse" && "max-lg:hidden")}>
@@ -210,13 +224,33 @@ export function MatchApp() {
           </div>
         </div>
       </div>
-      <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-white/10 bg-[var(--mp-ink)]/90 px-3 py-2 backdrop-blur-md lg:hidden" aria-label="Sections">
-        <div className="mx-auto grid max-w-md grid-cols-4 gap-1">
-          <TabButton id="pulse" current={tab} icon={<Radio />} label="Pulse" onSelect={setTab} />
-          <TabButton id="war" current={tab} icon={<Swords />} label="War" onSelect={setTab} />
-          <TabButton id="pod" current={tab} icon={<Users />} label="Pod" onSelect={setTab} />
-          <TabButton id="ask" current={tab} icon={<MessageCircle />} label="Ask" onSelect={setTab} />
-        </div>
+      <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-white/10 bg-[var(--mp-ink)]/95 px-3 py-2 backdrop-blur-md lg:hidden" aria-label="Sections">
+        <SegmentedControl
+          aria-label="Sections"
+          selectedKeys={[tab]}
+          onSelectionChange={(keys) => {
+            const next = [...keys][0];
+            if (next === "pulse" || next === "war" || next === "pod" || next === "ask") setTab(next);
+          }}
+          className="grid w-full grid-cols-4"
+        >
+          <SegmentedControlItem id="pulse" data-testid="tab-pulse" className="flex-col gap-0.5 py-1.5 text-[0.7rem]">
+            <Radio className="size-4" />
+            Balls
+          </SegmentedControlItem>
+          <SegmentedControlItem id="war" data-testid="tab-war" className="flex-col gap-0.5 py-1.5 text-[0.7rem]">
+            <Swords className="size-4" />
+            Calls
+          </SegmentedControlItem>
+          <SegmentedControlItem id="pod" data-testid="tab-pod" className="flex-col gap-0.5 py-1.5 text-[0.7rem]">
+            <Users className="size-4" />
+            Pod
+          </SegmentedControlItem>
+          <SegmentedControlItem id="ask" data-testid="tab-ask" className="flex-col gap-0.5 py-1.5 text-[0.7rem]">
+            <MessageCircle className="size-4" />
+            Ask
+          </SegmentedControlItem>
+        </SegmentedControl>
       </nav>
       {story ? <StoryReel story={story} onClose={() => setStory(null)} /> : null}
       <Dialog open={Boolean(explain)} onOpenChange={(open) => !open && setExplain(null)}>
@@ -237,34 +271,6 @@ export function MatchApp() {
         </DialogContent>
       </Dialog>
     </div>
-  );
-}
-
-function TabButton({
-  id,
-  current,
-  icon,
-  label,
-  onSelect,
-}: {
-  id: Tab;
-  current: Tab;
-  icon: ReactNode;
-  label: string;
-  onSelect: (tab: Tab) => void;
-}) {
-  const selected = current === id;
-  return (
-    <button
-      type="button"
-      data-testid={`tab-${id}`}
-      aria-current={selected ? "page" : undefined}
-      onClick={() => onSelect(id)}
-      className={`flex h-12 flex-col items-center justify-center gap-0.5 rounded-xl text-[0.7rem] ${selected ? "bg-[var(--mp-accent)] text-white" : "text-white/70"}`}
-    >
-      {icon}
-      {label}
-    </button>
   );
 }
 
@@ -302,12 +308,31 @@ function PulseMark() {
 }
 
 function SourceBadge({ badge }: { badge: "cricbuzz" | "cricapi" | "demo" }) {
-  const label = badge === "cricbuzz" ? "LIVE Cricbuzz" : badge === "cricapi" ? "DELAYED CricAPI" : "DEMO";
-  return (
-    <span data-testid="source-badge" className="mp-kicker rounded-full border border-white/15 px-2 py-1 text-[0.65rem] text-white/70">
-      {label}
-    </span>
-  );
+  if (badge === "cricbuzz") return <LiveBadge testId="source-badge" label="Live" detail="Cricbuzz" tone="rose" pulse />;
+  if (badge === "cricapi") return <LiveBadge testId="source-badge" label="Delayed" detail="CricAPI" tone="yellow" />;
+  return <LiveBadge testId="source-badge" label="Demo" tone="neutral" />;
+}
+
+function applyChoice(next: CatalogMatch) {
+  const loadMatch = useMatchStore.getState().loadMatch;
+  if (next.badge === "demo") {
+    const loaded = loadMatchRecord(next.id);
+    loadMatch({ id: loaded.id, live: loaded.live, meta: loaded.meta, deliveries: loaded.deliveries, card: loaded.card });
+    return;
+  }
+  loadMatch({
+    id: next.id,
+    live: true,
+    meta: next.meta ?? stubMeta(next.id, next.label),
+    deliveries: [],
+    card: null,
+  });
+}
+
+function rank(match: CatalogMatch): number {
+  if (match.badge === "cricbuzz" && match.live) return 0;
+  if (match.badge === "cricapi") return 1;
+  return 2;
 }
 
 function stubMeta(id: string, label: string): InningsMeta {
@@ -337,18 +362,18 @@ function stubMeta(id: string, label: string): InningsMeta {
 function StatusPill({ status }: { status: string }) {
   const live = status === "live" || status === "ended";
   return (
-    <span data-testid="feed-status" className="mp-kicker inline-flex items-center gap-1.5 text-white/50">
+    <span data-testid="feed-status" className="mp-kicker inline-flex items-center gap-1.5 text-white/75">
       <span className={`size-1.5 rounded-full ${live ? "bg-[var(--mp-lime)]" : "bg-[var(--mp-gold)]"}`} />
-      {status}
+      {status === "live" ? "In play" : status === "connecting" ? "Linking" : status === "reconnecting" ? "Reconnecting" : status === "scorecard" ? "Final" : status === "ended" ? "Final" : status === "error" ? "No link" : status}
     </span>
   );
 }
 
 function FeedSkeleton() {
   return (
-    <div className="grid gap-3" aria-hidden>
-      <div className="h-40 animate-pulse rounded-3xl bg-white/5 motion-reduce:animate-none" />
-      <div className="h-40 animate-pulse rounded-3xl bg-white/5 motion-reduce:animate-none" />
+    <div className="grid gap-3" aria-busy="true" aria-label="Loading the balls">
+      <Skeleton className="h-40 w-full" />
+      <Skeleton className="h-40 w-full" />
     </div>
   );
 }

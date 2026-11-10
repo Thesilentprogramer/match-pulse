@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { MessageCircle } from "lucide-react";
 import type { Voice } from "@/domain/grounding";
+import { SpinLoader } from "@/components/loaders/spin-loader";
 import { Button } from "@/components/ui/button";
 
 const PROMPTS = ["What does the chase need?", "Why is the win chance there?", "Explain DLS", "Who is batting?"];
@@ -24,7 +25,12 @@ export function CompanionPanel({ seenThroughSeq, voice, matchId }: { seenThrough
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ question: trimmed, seenThroughSeq, voice, matchId }),
       });
+      if (!response.ok) {
+        const failed = (await response.json().catch(() => null)) as { error?: string } | null;
+        throw new Error(failed?.error ?? "The companion dropped. Ask again in a moment.");
+      }
       const source = response.headers.get("x-pulse-source") ?? "template";
+      const betting = /\b(bet|bets|betting|odds|wager|gambl)/i.test(trimmed);
       const reader = response.body?.getReader();
       const decoder = new TextDecoder();
       let full = "";
@@ -33,7 +39,7 @@ export function CompanionPanel({ seenThroughSeq, voice, matchId }: { seenThrough
           const { value, done } = await reader.read();
           if (done) break;
           full += decoder.decode(value, { stream: true });
-          const next = full;
+          const next = betting ? `No betting tips. ${full}` : full;
           setMessages((current) => {
             const copy = [...current];
             copy[copy.length - 1] = { role: "pulse", text: next, source };
@@ -41,17 +47,18 @@ export function CompanionPanel({ seenThroughSeq, voice, matchId }: { seenThrough
           });
         }
       } else {
-        full = await response.text();
+        full = betting ? `No betting tips. ${await response.text()}` : await response.text();
         setMessages((current) => {
           const copy = [...current];
           copy[copy.length - 1] = { role: "pulse", text: full, source };
           return copy;
         });
       }
-    } catch {
+    } catch (error) {
+      const text = error instanceof Error ? error.message : "The companion dropped. Ask again in a moment.";
       setMessages((current) => {
         const copy = [...current];
-        copy[copy.length - 1] = { role: "pulse", text: "The companion dropped. Ask again in a moment.", source: "template" };
+        copy[copy.length - 1] = { role: "pulse", text, source: "template" };
         return copy;
       });
     } finally {
@@ -82,7 +89,7 @@ export function CompanionPanel({ seenThroughSeq, voice, matchId }: { seenThrough
               key={`${message.role}-${index}`}
               className={`rounded-2xl px-3 py-2 text-sm leading-relaxed ${message.role === "you" ? "bg-[var(--mp-accent)] text-white" : "bg-black/40 text-white"}`}
             >
-              {message.text || (busy ? "Reading the balls you have seen…" : "")}
+              {message.text || (busy ? <SpinLoader size="sm" label="Reading the balls you have seen" className="text-white" /> : "")}
               {message.source ? <span className="mt-1 block text-[0.65rem] uppercase tracking-widest opacity-70">{message.source === "model" ? "Live model" : "Desk voice"}</span> : null}
             </p>
           ))

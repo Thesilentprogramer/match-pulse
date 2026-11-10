@@ -1,4 +1,6 @@
 @import "tailwindcss";
+@import "../styles/theme.css";
+@import "../styles/typography.css";
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
 
@@ -8,6 +10,9 @@
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --font-sans: var(--font-outfit), ui-sans-serif, system-ui, sans-serif;
+  --color-accent-400: #ff2a2a;
+  --color-accent-500: #e10000;
+  --color-accent-600: #b10000;
   --font-mono: var(--font-geist-mono), ui-monospace, monospace;
   --font-display: var(--font-display-face), "Arial Narrow", Impact, sans-serif;
   --font-heading: var(--font-display);
@@ -170,6 +175,42 @@
 .mp-card {
   content-visibility: auto;
   contain-intrinsic-size: auto 168px;
+}
+
+@keyframes bui-progress-sweep {
+  from { translate: -100% 0; }
+  to { translate: 250% 0; }
+}
+
+.bui-skeleton {
+  --bui-skeleton-line: rgb(255 255 255 / 0.9);
+  --bui-skeleton-glow: rgb(255 255 255 / 0.55);
+  --bui-skeleton-bloom: rgb(255 255 255 / 0.35);
+  overflow: hidden;
+  isolation: isolate;
+}
+
+.dark .bui-skeleton {
+  --bui-skeleton-line: rgb(255 255 255 / 0.35);
+  --bui-skeleton-glow: rgb(255 255 255 / 0.14);
+  --bui-skeleton-bloom: rgb(255 255 255 / 0.06);
+}
+
+.bui-skeleton::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(90deg, transparent, var(--bui-skeleton-line)) right / 2px 100% no-repeat,
+    linear-gradient(90deg, transparent, var(--bui-skeleton-glow)) right / 72px 100% no-repeat,
+    linear-gradient(90deg, transparent, var(--bui-skeleton-bloom)) right / 240px 100% no-repeat;
+  translate: -100% 0;
+  animation: bui-skeleton-sheen 2.2s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+}
+
+@keyframes bui-skeleton-sheen {
+  0% { translate: -100% 0; }
+  60%, 100% { translate: 100% 0; }
 }
 
 @media (prefers-reduced-motion: reduce) {

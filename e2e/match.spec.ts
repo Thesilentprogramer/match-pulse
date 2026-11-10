@@ -1,9 +1,10 @@
 import { expect, test } from "@playwright/test";
 
 test("a live chase accepts an Over-War call", async ({ page }) => {
+  await page.addInitScript(() => localStorage.setItem("mp-hold-demo", "1"));
   await page.goto("/");
   await expect(page.getByRole("heading", { name: "Match Pulse" })).toBeVisible();
-  await expect(page.getByTestId("feed-status")).toHaveText(/live|reconnecting|ended/, { timeout: 20_000 });
+  await expect(page.getByTestId("feed-status")).toHaveText(/in play|linking|reconnecting|final|live|ended/i, { timeout: 20_000 });
   await expect(page.getByRole("region", { name: "Score" })).toBeVisible();
 
   await page.getByTestId("demo-toggle").click();

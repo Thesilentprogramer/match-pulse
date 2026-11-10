@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Clapperboard, Download, Share2 } from "lucide-react";
 import { toast } from "sonner";
 import { Player, type PlayerRef } from "@remotion/player";
@@ -11,6 +11,8 @@ import { summaryDurationFrames } from "@/remotion/summary-clock";
 import { STORY_FPS } from "@/remotion/timing";
 import { useMatchStore } from "@/state/match-store";
 import { browserCanSpeak, cancelSpeechSynthesis, primeSpeechSynthesis, useSummarySpeech } from "@/components/summary-speech";
+import { MusicPlayerCard } from "@/components/audio/music-player-card";
+import { SpinLoader } from "@/components/loaders/spin-loader";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
@@ -29,13 +31,40 @@ export function MatchSummaryButton() {
   const [mp4, setMp4] = useState(true);
   const [note, setNote] = useState<string | null>(null);
   const [job, setJob] = useState<{ id: string; progress: number } | null>(null);
+  const [progress, setProgress] = useState(0);
+  const [playing, setPlaying] = useState(true);
+  const opening = useRef(false);
   const speakInBrowser = open && phase === "ready" && voice === "browser" && Boolean(film?.scenes.every((scene) => !scene.audioSrc));
   useSummarySpeech(playerRef, film?.scenes ?? null, speakInBrowser);
 
+  useEffect(() => () => cancelSpeechSynthesis(), []);
+
+  useEffect(() => {
+    const player = playerRef.current;
+    if (!open || !film || !player) return;
+    const duration = Math.max(1, summaryDurationFrames(film.scenes));
+    const onFrame = () => setProgress((player.getCurrentFrame() / duration) * 100);
+    const onPlay = () => setPlaying(true);
+    const onPause = () => setPlaying(false);
+    player.addEventListener("frameupdate", onFrame);
+    player.addEventListener("play", onPlay);
+    player.addEventListener("pause", onPause);
+    return () => {
+      player.removeEventListener("frameupdate", onFrame);
+      player.removeEventListener("play", onPlay);
+      player.removeEventListener("pause", onPause);
+    };
+  }, [open, film]);
+
   async function openSummary() {
+    if (opening.current) return;
+    opening.current = true;
     primeSpeechSynthesis();
     const state = useMatchStore.getState();
-    if (!state.meta) return;
+    if (!state.meta) {
+      opening.current = false;
+      return;
+    }
     const key = summaryCacheKey(state.meta.id, state.deliveries, state.card ? state.meta.id : null);
     const hit = cache.get(key);
     setOpen(true);
@@ -46,6 +75,7 @@ export function MatchSummaryButton() {
       setMp4(hit.mp4);
       setPhase("ready");
       setNote(voiceNote(hit.voice));
+      opening.current = false;
       return;
     }
     setPhase("read");
@@ -85,7 +115,16 @@ export function MatchSummaryButton() {
     } catch (error) {
       setPhase("error");
       setNote(error instanceof Error ? error.message : "Could not build the summary.");
+    } finally {
+      opening.current = false;
     }
+  }
+
+  function nudge(frames: number) {
+    const player = playerRef.current;
+    if (!player || !film) return;
+    const duration = Math.max(1, summaryDurationFrames(film.scenes));
+    player.seekTo(Math.min(duration - 1, Math.max(0, player.getCurrentFrame() + frames)));
   }
 
   async function download() {
@@ -157,7 +196,7 @@ export function MatchSummaryButton() {
           if (!next) cancelSpeechSynthesis();
         }}
       >
-        <DialogContent className="max-w-md">
+        <DialogContent className="max-h-[90dvh] max-w-md overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="mp-display text-3xl">Match Summary</DialogTitle>
             <DialogDescription>
@@ -165,25 +204,45 @@ export function MatchSummaryButton() {
             </DialogDescription>
           </DialogHeader>
           {phase !== "ready" ? (
-            <p role="status" className="text-sm text-white/70">
+            <p role="status" className="flex items-center gap-2 text-sm text-white/80">
+              <SpinLoader size="sm" label={phase === "error" ? "Summary failed" : "Building the summary"} />
               {phase === "read" ? "Reading the log…" : phase === "voice" ? "Recording the voice…" : note}
             </p>
           ) : null}
           {phase === "ready" && film ? (
             <div className="grid gap-3">
-              <Player
-                ref={playerRef}
-                component={SummaryVideo}
-                inputProps={film}
-                durationInFrames={Math.max(30, summaryDurationFrames(film.scenes))}
-                compositionWidth={1080}
-                compositionHeight={1920}
-                fps={STORY_FPS}
-                style={{ width: "100%", aspectRatio: "9 / 16", borderRadius: 16, overflow: "hidden" }}
-                controls
-                autoPlay
+              <MusicPlayerCard
+                title="Match Summary"
+                artist={film.competition}
+                album={note ?? "Spoken from the balls already in"}
+                progress={progress}
+                currentTime={clock((progress / 100) * summaryDurationFrames(film.scenes))}
+                duration={clock(summaryDurationFrames(film.scenes))}
+                playing={playing}
+                onPlayingChange={(next) => {
+                  const player = playerRef.current;
+                  if (!player) return;
+                  if (next) void player.play();
+                  else player.pause();
+                }}
+                onPrevious={() => nudge(-STORY_FPS * 3)}
+                onNext={() => nudge(STORY_FPS * 3)}
+                cover={
+                  <div className="h-[min(52dvh,420px)] overflow-hidden bg-black">
+                    <Player
+                      ref={playerRef}
+                      component={SummaryVideo}
+                      inputProps={film}
+                      durationInFrames={Math.max(30, summaryDurationFrames(film.scenes))}
+                      compositionWidth={1080}
+                      compositionHeight={1920}
+                      fps={STORY_FPS}
+                      style={{ width: "100%", height: "100%" }}
+                      autoPlay
+                    />
+                  </div>
+                }
               />
-              {note ? <p className="text-xs text-white/55">{note}</p> : null}
               <div className="flex gap-2">
                 {mp4 ? (
                   <Button type="button" onClick={() => void download()} disabled={Boolean(job)}>
@@ -204,6 +263,11 @@ export function MatchSummaryButton() {
       </Dialog>
     </>
   );
+}
+
+function clock(frames: number): string {
+  const sec = Math.max(0, Math.floor(frames / STORY_FPS));
+  return `${Math.floor(sec / 60)}:${String(sec % 60).padStart(2, "0")}`;
 }
 
 function voiceNote(voice: string): string | null {

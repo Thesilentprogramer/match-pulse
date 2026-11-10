@@ -1,0 +1,59 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`shot plan > picks six sourced shots and never names a player in the prompt 1`] = `
+[
+  "Style: 2D Japanese sports anime, Haikyuu-like cel shading, speed lines, red and black accent palette, vertical 9:16
+World: Hnry Stadium, Wellington. daytime. rain arriving. A crowd in plain clothes. No signage.
+Characters: Same cast in every shot. The chasing XI wears a blue kit. The fielding XI wears a black kit. Each XI has only these archetypes: fast bowler, spinner, anchor batter, wicketkeeper. Generic faces. No likeness, no names, no shirt numbers, no crests.
+Action: the fast bowler in the blue kit bowls a hostile length at the stumps while the batter plays late
+Camera: full figure; low angle; tracking the run-up
+Mood: brooding storm light, a cluster of wickets Swing 0.00. Tension 0.80.
+Constraints: No text, no subtitles, no scoreboard, no numbers, no letters. No logos, no crests, no badges, no flags, no shirt numbers, no real faces, no likeness of a real player. Cricket gear only: a flat bat, three wooden stumps, pads, and a grilled helmet. Anatomically correct hands. One cricket ball. No baseball and no baseball bat. Do not depict an event this action does not name.",
+  "Style: 2D Japanese sports anime, Haikyuu-like cel shading, speed lines, red and black accent palette, vertical 9:16
+World: Hnry Stadium, Wellington. daytime. rain arriving. A crowd in plain clothes. No signage.
+Characters: Same cast in every shot. The chasing XI wears a blue kit. The fielding XI wears a black kit. Each XI has only these archetypes: fast bowler, spinner, anchor batter, wicketkeeper. Generic faces. No likeness, no names, no shirt numbers, no crests.
+Action: the anchor batter in the black kit blocks a good-length ball and holds the crease
+Camera: medium close-up; side on; static
+Mood: brooding storm light, wickets are down Swing 0.00. Tension 0.60.
+Constraints: No text, no subtitles, no scoreboard, no numbers, no letters. No logos, no crests, no badges, no flags, no shirt numbers, no real faces, no likeness of a real player. Cricket gear only: a flat bat, three wooden stumps, pads, and a grilled helmet. Anatomically correct hands. One cricket ball. No baseball and no baseball bat. Do not depict an event this action does not name.",
+  "Style: 2D Japanese sports anime, Haikyuu-like cel shading, speed lines, red and black accent palette, vertical 9:16
+World: Hnry Stadium, Wellington. daytime. rain arriving. A crowd in plain clothes. No signage.
+Characters: Same cast in every shot. The chasing XI wears a blue kit. The fielding XI wears a black kit. Each XI has only these archetypes: fast bowler, spinner, anchor batter, wicketkeeper. Generic faces. No likeness, no names, no shirt numbers, no crests.
+Action: the anchor batter in the blue kit loses a wicket as the field closes in
+Camera: extreme close-up; eye level; static on the eyes
+Mood: brooding storm light, wickets are down Swing 0.00. Tension 0.58.
+Constraints: No text, no subtitles, no scoreboard, no numbers, no letters. No logos, no crests, no badges, no flags, no shirt numbers, no real faces, no likeness of a real player. Cricket gear only: a flat bat, three wooden stumps, pads, and a grilled helmet. Anatomically correct hands. One cricket ball. No baseball and no baseball bat. Do not depict an event this action does not name.",
+  "Style: 2D Japanese sports anime, Haikyuu-like cel shading, speed lines, red and black accent palette, vertical 9:16
+World: Hnry Stadium, Wellington. daytime. rain arriving. A crowd in plain clothes. No signage.
+Characters: Same cast in every shot. The chasing XI wears a blue kit. The fielding XI wears a black kit. Each XI has only these archetypes: fast bowler, spinner, anchor batter, wicketkeeper. Generic faces. No likeness, no names, no shirt numbers, no crests.
+Action: two batters in the blue kit rotate the strike with defensive pushes
+Camera: medium two-shot; side on; slow lateral
+Mood: brooding storm light, wickets are down Swing 0.00. Tension 0.70.
+Constraints: No text, no subtitles, no scoreboard, no numbers, no letters. No logos, no crests, no badges, no flags, no shirt numbers, no real faces, no likeness of a real player. Cricket gear only: a flat bat, three wooden stumps, pads, and a grilled helmet. Anatomically correct hands. One cricket ball. No baseball and no baseball bat. Do not depict an event this action does not name.",
+  "Style: 2D Japanese sports anime, Haikyuu-like cel shading, speed lines, red and black accent palette, vertical 9:16
+World: Hnry Stadium, Wellington. daytime. rain arriving. A crowd in plain clothes. No signage.
+Characters: Same cast in every shot. The chasing XI wears a blue kit. The fielding XI wears a black kit. Each XI has only these archetypes: fast bowler, spinner, anchor batter, wicketkeeper. Generic faces. No likeness, no names, no shirt numbers, no crests.
+Action: ground staff in plain grey pull the covers as rain reaches the pitch
+Camera: extreme wide; high crane; slow rise over the ground
+Mood: brooding storm light, rain has stopped play Swing 0.00. Tension 0.82.
+Constraints: No text, no subtitles, no scoreboard, no numbers, no letters. No logos, no crests, no badges, no flags, no shirt numbers, no real faces, no likeness of a real player. Cricket gear only: a flat bat, three wooden stumps, pads, and a grilled helmet. Anatomically correct hands. One cricket ball. No baseball and no baseball bat. Do not depict an event this action does not name.",
+  "Style: 2D Japanese sports anime, Haikyuu-like cel shading, speed lines, red and black accent palette, vertical 9:16
+World: Hnry Stadium, Wellington. daytime. rain arriving. A crowd in plain clothes. No signage.
+Characters: Same cast in every shot. The chasing XI wears a blue kit. The fielding XI wears a black kit. Each XI has only these archetypes: fast bowler, spinner, anchor batter, wicketkeeper. Generic faces. No likeness, no names, no shirt numbers, no crests.
+Action: the blue-kit side celebrate with raised arms and no banner
+Camera: medium; low angle; push in
+Mood: electric rim light, the side has won Swing 0.00. Tension 0.64.
+Constraints: No text, no subtitles, no scoreboard, no numbers, no letters. No logos, no crests, no badges, no flags, no shirt numbers, no real faces, no likeness of a real player. Cricket gear only: a flat bat, three wooden stumps, pads, and a grilled helmet. Anatomically correct hands. One cricket ball. No baseball and no baseball bat. Do not depict an event this action does not name.",
+]
+`;
+
+exports[`shot plan > picks six sourced shots and never names a player in the prompt 2`] = `
+[
+  "text, subtitles, scoreboard, numbers, letters, watermark, logos, crests, badges, flags, shirt numbers, real faces, celebrity likeness, baseball, baseball bat, tennis, extra balls, extra stumps, malformed hands, six, six signal",
+  "text, subtitles, scoreboard, numbers, letters, watermark, logos, crests, badges, flags, shirt numbers, real faces, celebrity likeness, baseball, baseball bat, tennis, extra balls, extra stumps, malformed hands, six, six signal",
+  "text, subtitles, scoreboard, numbers, letters, watermark, logos, crests, badges, flags, shirt numbers, real faces, celebrity likeness, baseball, baseball bat, tennis, extra balls, extra stumps, malformed hands, six, six signal",
+  "text, subtitles, scoreboard, numbers, letters, watermark, logos, crests, badges, flags, shirt numbers, real faces, celebrity likeness, baseball, baseball bat, tennis, extra balls, extra stumps, malformed hands, six, six signal",
+  "text, subtitles, scoreboard, numbers, letters, watermark, logos, crests, badges, flags, shirt numbers, real faces, celebrity likeness, baseball, baseball bat, tennis, extra balls, extra stumps, malformed hands, six, six signal",
+  "text, subtitles, scoreboard, numbers, letters, watermark, logos, crests, badges, flags, shirt numbers, real faces, celebrity likeness, baseball, baseball bat, tennis, extra balls, extra stumps, malformed hands, six, six signal",
+]
+`;

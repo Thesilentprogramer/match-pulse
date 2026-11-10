@@ -18,7 +18,7 @@ describe("tts port", () => {
 
   it("uses espeak when the binary is on the machine", async () => {
     const provider = await createTtsProvider({ NODE_ENV: "test" });
-    expect(["espeak", "openai", "silent"]).toContain(provider.id);
+    expect(["gnani", "espeak", "openai", "silent"]).toContain(provider.id);
     if (provider instanceof EspeakTts || provider.id === "espeak") {
       const spoken = await provider.synthesize("New Zealand are all out.");
       expect(spoken.durationSec).toBeGreaterThan(0.4);

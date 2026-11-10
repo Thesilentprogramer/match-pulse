@@ -42,7 +42,7 @@ export class EspeakTts implements TtsProvider {
     const dir = await mkdtemp(path.join(tmpdir(), "mp-tts-"));
     const file = path.join(dir, "line.wav");
     try {
-      await exec(this.bin, ["-v", "en", "-s", "148", "-w", file, text.slice(0, 500)], { timeout: 20000 });
+      await exec(this.bin, ["-v", "en", "-s", "148", "-w", file, text.slice(0, 500)], { timeout: 8000 });
       const wav = new Uint8Array(await readFile(file));
       return { wav, durationSec: wavDuration(wav) };
     } finally {
@@ -61,6 +61,7 @@ export class OpenAiTts implements TtsProvider {
       method: "POST",
       headers: { Authorization: `Bearer ${this.key}`, "Content-Type": "application/json" },
       body: JSON.stringify({ model: "tts-1", voice: "alloy", input: text.slice(0, 500), response_format: "wav" }),
+      signal: AbortSignal.timeout(8_000),
     });
     if (!response.ok) throw new Error(`Speech request failed (${response.status}).`);
     const wav = new Uint8Array(await response.arrayBuffer());
@@ -107,9 +108,56 @@ async function espeakBin(): Promise<string | null> {
   return null;
 }
 
-export async function createTtsProvider(env: NodeJS.ProcessEnv = process.env): Promise<TtsProvider> {
+/** Tries each speaker in order. A failure is logged without the key, then the next one speaks. */
+export class FallbackTts implements TtsProvider {
+  id: string;
+  private remaining: TtsProvider[];
+
+  constructor(
+    providers: TtsProvider[],
+    private readonly log: (message: string) => void = (message) => console.warn(message),
+  ) {
+    this.remaining = providers;
+    this.id = providers[0]?.id ?? "silent";
+  }
+
+  async synthesize(text: string): Promise<Spoken> {
+    const errors: string[] = [];
+    for (const provider of this.remaining) {
+      try {
+        const spoken = await provider.synthesize(text);
+        this.id = provider.id;
+        this.remaining = [provider];
+        return spoken;
+      } catch (error) {
+        const reason = (error instanceof Error ? error.message : "failed").replace(/sk-[A-Za-z0-9_-]{8,}/g, "[key]");
+        errors.push(`${provider.id}: ${reason}`);
+        this.log(`[match-pulse] tts ${provider.id} failed: ${reason}`);
+      }
+    }
+    throw new Error(errors.join("; ") || "no speaker");
+  }
+}
+
+export async function createTtsProvider(
+  env: NodeJS.ProcessEnv = process.env,
+  options?: { language?: string },
+): Promise<TtsProvider> {
+  const providers: TtsProvider[] = [];
+  if (env.GNANI_API_KEY) {
+    const { GnaniTtsProvider } = await import("@/providers/story/gnani");
+    providers.push(
+      new GnaniTtsProvider({
+        apiKey: env.GNANI_API_KEY,
+        voice: env.GNANI_VOICE || "Nalini",
+        language: options?.language || env.GNANI_LANGUAGE || "en-IN",
+        model: env.GNANI_MODEL || "timbre-v2.5",
+      }),
+    );
+  }
+  if (env.OPENAI_API_KEY) providers.push(new OpenAiTts(env.OPENAI_API_KEY));
   const bin = await espeakBin();
-  if (bin) return new EspeakTts(bin);
-  if (env.OPENAI_API_KEY) return new OpenAiTts(env.OPENAI_API_KEY);
-  return new SilentTts();
+  if (bin) providers.push(new EspeakTts(bin));
+  providers.push(new SilentTts());
+  return providers.length === 1 ? providers[0]! : new FallbackTts(providers);
 }

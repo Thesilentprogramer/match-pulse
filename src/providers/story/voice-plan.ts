@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
 import { secondsForSpeech } from "@/domain/summary";
-import { rememberSpeech } from "@/providers/story/speech-cache";
-import { wavDataUrl, type TtsProvider } from "@/providers/story/tts";
+import { recallSpeech, recallSpeechVoice, rememberSpeech } from "@/providers/story/speech-cache";
+import { wavDataUrl, wavDuration, type TtsProvider } from "@/providers/story/tts";
 
 export interface VoiceClip {
   id?: string;
@@ -27,13 +27,24 @@ export function browserVoicePlan(lines: readonly string[]): VoicePlan {
   };
 }
 
-export async function planVoice(provider: TtsProvider, lines: readonly string[]): Promise<VoicePlan> {
+export async function planVoice(provider: TtsProvider, lines: readonly string[], state = ""): Promise<VoicePlan> {
   if (provider.id === "silent") return browserVoicePlan(lines);
   const clips: VoiceClip[] = [];
   for (const line of lines) {
+    const id = createHash("sha256").update(`${state}:${line}`).digest("hex").slice(0, 16);
+    const cached = recallSpeech(id);
+    if (cached) {
+      clips.push({
+        id,
+        durationSec: wavDuration(cached),
+        url: wavDataUrl(cached),
+        voice: recallSpeechVoice(id) ?? provider.id,
+      });
+      continue;
+    }
     const audio = await provider.synthesize(line);
-    const id = createHash("sha256").update(`${provider.id}:${line}`).digest("hex").slice(0, 16);
-    rememberSpeech(id, audio.wav);
+    if (provider.id === "silent") return browserVoicePlan(lines);
+    rememberSpeech(id, audio.wav, provider.id);
     clips.push({
       id,
       durationSec: audio.durationSec,

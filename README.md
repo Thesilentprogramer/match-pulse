@@ -88,7 +88,10 @@ Copy `.env.example` to `.env.local`. Every variable is optional.
 
 | Variable | Used for |
 | --- | --- |
-| `OPENAI_API_KEY` | Companion, commentary, and speech if espeak is absent |
+| `GNANI_API_KEY` | Match Summary voice. Vachana TTS, tried first. Server only |
+| `GNANI_VOICE` | Defaults to `Nalini` |
+| `GNANI_LANGUAGE` | Defaults to `en-IN`. The summary can also ask for `hi-IN` |
+| `OPENAI_API_KEY` | Companion, commentary, and speech when Gnani is absent or down |
 | `OPENAI_MODEL` | Defaults to `gpt-4o-mini` |
 | `AI_GATEWAY_API_KEY` | Same calls through the Vercel AI Gateway |
 | `MATCH_PULSE_MODEL` | Gateway model id |
@@ -96,7 +99,7 @@ Copy `.env.example` to `.env.local`. Every variable is optional.
 | `HF_TOKEN` | Reserved. The video port does not call out yet |
 | `CRICAPI_KEY` | CricketData.org fallback. Server only. Free tier is 100 hits a day |
 
-Speech with no key: install `espeak-ng`. Match Summary still plays with captions if neither espeak nor an OpenAI key is present.
+Speech order is Gnani, then OpenAI, then `espeak-ng`, then the browser. A failed speaker is skipped. The film still plays with captions if every server voice is absent.
 
 Live scores try Cricbuzz first (unofficial, polled on the server), then CricAPI if `CRICAPI_KEY` is set, then the recorded demo. The badge says which source is on screen.
 

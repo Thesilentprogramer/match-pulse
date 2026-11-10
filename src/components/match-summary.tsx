@@ -1,29 +1,39 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { Clapperboard, Download, Share2 } from "lucide-react";
 import { toast } from "sonner";
-import { Player } from "@remotion/player";
+import { Player, type PlayerRef } from "@remotion/player";
 import { buildMatchSummary, summaryCacheKey, withSpokenDurations, type SummaryFilm } from "@/domain/summary";
+import { MP4_UNAVAILABLE_MESSAGE } from "@/lib/host";
 import { SummaryFilm as SummaryVideo } from "@/remotion/SummaryFilm";
-import { summaryDurationFrames } from "@/remotion/SummaryFilm";
+import { summaryDurationFrames } from "@/remotion/summary-clock";
 import { STORY_FPS } from "@/remotion/timing";
 import { useMatchStore } from "@/state/match-store";
+import { browserCanSpeak, cancelSpeechSynthesis, primeSpeechSynthesis, useSummarySpeech } from "@/components/summary-speech";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
-const cache = new Map<string, SummaryFilm>();
+type CachedSummary = { film: SummaryFilm; voice: string; mp4: boolean };
+
+const cache = new Map<string, CachedSummary>();
 
 type Phase = "read" | "voice" | "ready" | "error";
 
 export function MatchSummaryButton() {
+  const playerRef = useRef<PlayerRef>(null);
   const [open, setOpen] = useState(false);
   const [phase, setPhase] = useState<Phase>("read");
   const [film, setFilm] = useState<SummaryFilm | null>(null);
+  const [voice, setVoice] = useState<string | null>(null);
+  const [mp4, setMp4] = useState(true);
   const [note, setNote] = useState<string | null>(null);
   const [job, setJob] = useState<{ id: string; progress: number } | null>(null);
+  const speakInBrowser = open && phase === "ready" && voice === "browser" && Boolean(film?.scenes.every((scene) => !scene.audioSrc));
+  useSummarySpeech(playerRef, film?.scenes ?? null, speakInBrowser);
 
   async function openSummary() {
+    primeSpeechSynthesis();
     const state = useMatchStore.getState();
     if (!state.meta) return;
     const key = summaryCacheKey(state.meta.id, state.deliveries, state.card ? state.meta.id : null);
@@ -31,13 +41,16 @@ export function MatchSummaryButton() {
     setOpen(true);
     setJob(null);
     if (hit) {
-      setFilm(hit);
+      setFilm(hit.film);
+      setVoice(hit.voice);
+      setMp4(hit.mp4);
       setPhase("ready");
-      setNote(null);
+      setNote(voiceNote(hit.voice));
       return;
     }
     setPhase("read");
     setFilm(null);
+    setVoice(null);
     const draft = buildMatchSummary({
       meta: state.meta,
       deliveries: state.deliveries,
@@ -52,18 +65,22 @@ export function MatchSummaryButton() {
         body: JSON.stringify({ lines: draft.scenes.map((scene) => scene.narration) }),
       });
       const body = (await response.json()) as {
-        clips?: { durationSec: number; url: string }[];
+        clips?: { durationSec: number; url: string | null }[];
         voice?: string;
+        mp4?: boolean;
         error?: string;
       };
-      if (!response.ok || !body.clips) throw new Error(body.error ?? "Voice failed.");
+      if (!response.ok || !body.clips || !body.voice) throw new Error(body.error ?? "Voice failed.");
       const ready = withSpokenDurations(
         draft,
         body.clips.map((clip) => ({ durationSec: clip.durationSec, url: clip.url })),
       );
-      cache.set(key, ready);
+      const hostedMp4 = body.mp4 !== false;
+      cache.set(key, { film: ready, voice: body.voice, mp4: hostedMp4 });
       setFilm(ready);
-      setNote(body.voice === "silent" ? "No speaker on this host. The captions are the narration." : null);
+      setVoice(body.voice);
+      setMp4(hostedMp4);
+      setNote(voiceNote(body.voice));
       setPhase("ready");
     } catch (error) {
       setPhase("error");
@@ -72,17 +89,20 @@ export function MatchSummaryButton() {
   }
 
   async function download() {
-    if (!film) return;
+    if (!film || !mp4) {
+      toast(MP4_UNAVAILABLE_MESSAGE);
+      return;
+    }
     setJob({ id: "", progress: 0.05 });
     const response = await fetch("/api/summary/render", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(film),
     });
-    const started = (await response.json()) as { jobId?: string; error?: string };
-    if (!response.ok || !started.jobId) {
+    const started = (await response.json().catch(() => null)) as { jobId?: string; error?: string; unavailable?: boolean } | null;
+    if (!response.ok || !started?.jobId) {
       setJob(null);
-      toast(started.error ?? "This host cannot render an MP4. The player above is the summary.");
+      toast(started?.error ?? MP4_UNAVAILABLE_MESSAGE);
       return;
     }
     const jobId = started.jobId;
@@ -130,7 +150,13 @@ export function MatchSummaryButton() {
         <Clapperboard />
         Match Summary
       </Button>
-      <Dialog open={open} onOpenChange={setOpen}>
+      <Dialog
+        open={open}
+        onOpenChange={(next) => {
+          setOpen(next);
+          if (!next) cancelSpeechSynthesis();
+        }}
+      >
         <DialogContent className="max-w-md">
           <DialogHeader>
             <DialogTitle className="mp-display text-3xl">Match Summary</DialogTitle>
@@ -146,6 +172,7 @@ export function MatchSummaryButton() {
           {phase === "ready" && film ? (
             <div className="grid gap-3">
               <Player
+                ref={playerRef}
                 component={SummaryVideo}
                 inputProps={film}
                 durationInFrames={Math.max(30, summaryDurationFrames(film.scenes))}
@@ -158,10 +185,14 @@ export function MatchSummaryButton() {
               />
               {note ? <p className="text-xs text-white/55">{note}</p> : null}
               <div className="flex gap-2">
-                <Button type="button" onClick={() => void download()} disabled={Boolean(job)}>
-                  <Download />
-                  {job ? `Rendering ${Math.round(job.progress * 100)}%` : "Download"}
-                </Button>
+                {mp4 ? (
+                  <Button type="button" onClick={() => void download()} disabled={Boolean(job)}>
+                    <Download />
+                    {job ? `Rendering ${Math.round(job.progress * 100)}%` : "Download"}
+                  </Button>
+                ) : (
+                  <p className="self-center text-xs text-white/55">{MP4_UNAVAILABLE_MESSAGE}</p>
+                )}
                 <Button type="button" variant="secondary" onClick={() => void share()}>
                   <Share2 />
                   Share
@@ -173,4 +204,10 @@ export function MatchSummaryButton() {
       </Dialog>
     </>
   );
+}
+
+function voiceNote(voice: string): string | null {
+  if (voice !== "browser") return null;
+  if (browserCanSpeak()) return "No server voice on this host. The browser reads each scene.";
+  return "No speaker on this host. The captions are the narration.";
 }

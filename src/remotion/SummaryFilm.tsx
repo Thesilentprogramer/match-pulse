@@ -1,4 +1,5 @@
 import { AbsoluteFill, Audio, Sequence, staticFile, useCurrentFrame } from "remotion";
+import { summaryDurationFrames, summarySceneSpans } from "./summary-clock";
 import type { SummaryFilmInput } from "./summary-schema";
 import { display } from "./fonts";
 
@@ -7,12 +8,10 @@ const INK = "#161616";
 const RED = "#e10000";
 
 export const SummaryFilm = ({ scenes }: SummaryFilmInput) => {
-  const rows = scenes.reduce<{ scene: SummaryFilmInput["scenes"][number]; from: number; frames: number }[]>((acc, scene) => {
-    const frames = Math.max(30, Math.round(scene.durationSec * 30));
-    const from = acc.at(-1) ? acc.at(-1)!.from + acc.at(-1)!.frames : 0;
-    acc.push({ scene, from, frames });
-    return acc;
-  }, []);
+  const rows = summarySceneSpans(scenes).flatMap((span) => {
+    const scene = scenes[span.index];
+    return scene ? [{ scene, from: span.from, frames: span.frames }] : [];
+  });
   return (
     <AbsoluteFill style={{ background: PAPER }}>
       {rows.map((row) => (
@@ -182,6 +181,4 @@ function Cheer({ wobble }: { wobble: number }) {
   );
 }
 
-export function summaryDurationFrames(scenes: readonly { durationSec: number }[]): number {
-  return scenes.reduce((sum, scene) => sum + Math.max(30, Math.round(scene.durationSec * 30)), 0);
-}
+export { summaryDurationFrames };

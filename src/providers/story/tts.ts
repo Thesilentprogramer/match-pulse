@@ -17,6 +17,10 @@ export interface TtsProvider {
   synthesize(text: string): Promise<Spoken>;
 }
 
+export function wavDataUrl(wav: Uint8Array): string {
+  return `data:audio/wav;base64,${Buffer.from(wav).toString("base64")}`;
+}
+
 export function wavDuration(wav: Uint8Array): number {
   if (wav.length < 44) return 0;
   const view = new DataView(wav.buffer, wav.byteOffset, wav.byteLength);

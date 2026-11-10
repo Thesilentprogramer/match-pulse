@@ -1,0 +1,184 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
+
+@custom-variant dark (&:is(.dark *));
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-outfit), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-geist-mono), ui-monospace, monospace;
+  --font-display: var(--font-display-face), "Arial Narrow", Impact, sans-serif;
+  --font-heading: var(--font-display);
+  --color-sidebar-ring: var(--sidebar-ring);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar: var(--sidebar);
+  --color-chart-5: var(--chart-5);
+  --color-chart-4: var(--chart-4);
+  --color-chart-3: var(--chart-3);
+  --color-chart-2: var(--chart-2);
+  --color-chart-1: var(--chart-1);
+  --color-ring: var(--ring);
+  --color-input: var(--input);
+  --color-border: var(--border);
+  --color-destructive: var(--destructive);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-accent: var(--accent);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-muted: var(--muted);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-secondary: var(--secondary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary: var(--primary);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-popover: var(--popover);
+  --color-card-foreground: var(--card-foreground);
+  --color-card: var(--card);
+  --radius-sm: calc(var(--radius) * 0.6);
+  --radius-md: calc(var(--radius) * 0.8);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) * 1.35);
+  --radius-2xl: calc(var(--radius) * 1.7);
+  --radius-3xl: calc(var(--radius) * 2.1);
+  --radius-4xl: calc(var(--radius) * 2.5);
+}
+
+/*
+  Theme: pulse-red. Inspired by a night cricket broadcast — deep red on
+  near-black — without using anyone else's logo or wordmark.
+  Swap the block under [data-theme] to restyle the app. Components read
+  these variables; they do not hardcode a palette.
+*/
+:root,
+[data-theme="pulse-red"] {
+  --mp-accent: #e10000;
+  --mp-accent-bright: #ff2a2a;
+  --mp-lime: var(--mp-accent);
+  --mp-teal: #f4f4f5;
+  --mp-coral: #ff5a36;
+  --mp-gold: #ffd23f;
+  --mp-ink: #070707;
+  --mp-elev-1: 0 1px 0 rgb(255 255 255 / 8%) inset, 0 16px 40px rgb(0 0 0 / 45%);
+  --mp-elev-2: 0 0 0 1px rgb(225 0 0 / 35%), 0 22px 50px rgb(0 0 0 / 55%);
+  --mp-ease: cubic-bezier(0.2, 0.8, 0.2, 1);
+  --mp-fast: 140ms;
+  --mp-base: 220ms;
+  --background: #090909;
+  --foreground: #f7f7f7;
+  --card: #141414;
+  --card-foreground: #f7f7f7;
+  --popover: #121212;
+  --popover-foreground: #f7f7f7;
+  --primary: #e10000;
+  --primary-foreground: #ffffff;
+  --secondary: #1c1c1c;
+  --secondary-foreground: #f7f7f7;
+  --muted: #1a1a1a;
+  --muted-foreground: #c8c8c8;
+  --accent: #2a0a0a;
+  --accent-foreground: #ffffff;
+  --destructive: #ff5a36;
+  --border: rgb(255 255 255 / 12%);
+  --input: rgb(255 255 255 / 14%);
+  --ring: #e10000;
+  --chart-1: oklch(0.91 0.16 126);
+  --chart-2: oklch(0.78 0.12 175);
+  --chart-3: oklch(0.7 0.18 35);
+  --chart-4: oklch(0.82 0.12 85);
+  --chart-5: oklch(0.7 0.08 250);
+  --radius: 0.9rem;
+  --sidebar: oklch(0.18 0.018 160);
+  --sidebar-foreground: oklch(0.97 0.01 130);
+  --sidebar-primary: oklch(0.91 0.16 126);
+  --sidebar-primary-foreground: oklch(0.2 0.03 150);
+  --sidebar-accent: oklch(0.27 0.02 162);
+  --sidebar-accent-foreground: oklch(0.97 0.01 130);
+  --sidebar-border: oklch(1 0 0 / 12%);
+  --sidebar-ring: oklch(0.91 0.16 126);
+}
+
+.dark {
+  --background: #090909;
+  --foreground: #f7f7f7;
+  --card: #141414;
+  --card-foreground: #f7f7f7;
+  --popover: #121212;
+  --popover-foreground: #f7f7f7;
+  --primary: #e10000;
+  --primary-foreground: #ffffff;
+  --secondary: #1c1c1c;
+  --secondary-foreground: #f7f7f7;
+  --muted: #1a1a1a;
+  --muted-foreground: #c8c8c8;
+  --accent: #2a0a0a;
+  --accent-foreground: #ffffff;
+  --destructive: #ff5a36;
+  --border: rgb(255 255 255 / 12%);
+  --input: rgb(255 255 255 / 14%);
+  --ring: #e10000;
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  html {
+    @apply font-sans;
+  }
+  body {
+    @apply bg-background text-foreground antialiased;
+    background-image:
+      radial-gradient(880px 420px at 50% -18%, color-mix(in srgb, var(--mp-accent) 42%, transparent), transparent 60%),
+      radial-gradient(520px 280px at 100% 0%, color-mix(in srgb, var(--mp-accent) 18%, transparent), transparent 55%);
+    background-attachment: fixed;
+    min-height: 100%;
+  }
+  ::selection {
+    background: color-mix(in oklch, var(--primary) 70%, black);
+    color: var(--primary-foreground);
+  }
+}
+
+.mp-glass {
+  background: color-mix(in oklch, var(--card) 94%, black);
+  border: 1px solid color-mix(in oklch, white 16%, transparent);
+  box-shadow: var(--mp-elev-1);
+  backdrop-filter: blur(18px);
+}
+
+.mp-kicker {
+  font-family: var(--font-mono), ui-monospace, monospace;
+  font-size: 0.68rem;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+
+.mp-display {
+  font-family: var(--font-display), "Arial Narrow", sans-serif;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  line-height: 0.9;
+  text-transform: uppercase;
+}
+
+.mp-card {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 168px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

@@ -7,11 +7,13 @@ import type { MatchStory } from "@/domain/story";
 import { renderStoryCard, recordStoryVideo } from "@/components/story-export";
 import { StoryPlayer } from "@/components/story-player";
 import { Button } from "@/components/ui/button";
+import { clientMp4Available, MP4_UNAVAILABLE_MESSAGE } from "@/lib/host";
 
 export function StoryReel({ story, onClose }: { story: MatchStory; onClose: () => void }) {
   const [playerFailed, setPlayerFailed] = useState(false);
   const [busy, setBusy] = useState<"mp4" | "webm" | "card" | null>(null);
   const [progress, setProgress] = useState<number | null>(null);
+  const mp4 = clientMp4Available();
   const cardBeat = story.beats.at(-1) ?? story.beats[0];
 
   async function exportMp4() {
@@ -23,6 +25,11 @@ export function StoryReel({ story, onClose }: { story: MatchStory; onClose: () =
         headers: { "content-type": "application/json" },
         body: JSON.stringify(story),
       });
+      if (started.status === 501) {
+        const body = (await started.json().catch(() => null)) as { error?: string } | null;
+        toast(body?.error ?? MP4_UNAVAILABLE_MESSAGE);
+        return;
+      }
       if (!started.ok) throw new Error("Server render is unavailable.");
       const { jobId } = (await started.json()) as { jobId: string };
       for (let attempt = 0; attempt < 120; attempt += 1) {
@@ -112,11 +119,13 @@ export function StoryReel({ story, onClose }: { story: MatchStory; onClose: () =
             </div>
           </PlayerBoundary>
         )}
-        <div className="grid grid-cols-3 gap-2">
-          <Button type="button" variant="secondary" disabled={busy !== null} onClick={() => void exportMp4()}>
-            <Download />
-            {busy === "mp4" ? `${Math.round((progress ?? 0) * 100)}%` : "MP4"}
-          </Button>
+        <div className={mp4 ? "grid grid-cols-3 gap-2" : "grid grid-cols-2 gap-2"}>
+          {mp4 ? (
+            <Button type="button" variant="secondary" disabled={busy !== null} onClick={() => void exportMp4()}>
+              <Download />
+              {busy === "mp4" ? `${Math.round((progress ?? 0) * 100)}%` : "MP4"}
+            </Button>
+          ) : null}
           <Button type="button" variant="secondary" disabled={busy !== null} onClick={() => void exportCard()}>
             PNG
           </Button>
@@ -125,6 +134,7 @@ export function StoryReel({ story, onClose }: { story: MatchStory; onClose: () =
             Share
           </Button>
         </div>
+        {mp4 ? null : <p className="text-center text-xs text-white/55">{MP4_UNAVAILABLE_MESSAGE}</p>}
       </div>
     </div>
   );

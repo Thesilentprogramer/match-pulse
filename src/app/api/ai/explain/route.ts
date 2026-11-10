@@ -19,7 +19,7 @@ const schema = z.object({
   ballsLeft: z.number(),
   wicketsInHand: z.number(),
   note: z.string().optional(),
-  dismissal: z.enum(["bowled", "caught", "lbw", "runout", "stumped"]).optional(),
+  dismissal: z.enum(["bowled", "caught", "lbw", "runout", "stumped", "unspecified"]).optional(),
   runsBat: z.number(),
   boundary: z.union([z.literal(4), z.literal(6)]).optional(),
   phase: z.enum(["powerplay", "middle", "death", "complete"]),

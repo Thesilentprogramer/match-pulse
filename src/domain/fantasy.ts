@@ -1,5 +1,6 @@
 import type { Delivery, FantasySlot, FantasyXi, InningsMeta } from "@/domain/types";
 import { playerName } from "@/domain/players";
+import { deliverySpan } from "@/domain/score";
 
 /**
  * A plain-English reading of a sample Flex XI.
@@ -149,7 +150,7 @@ function applyFantasyBall(state: FantasyState, delivery: Delivery, meta: Innings
   };
   const faced = delivery.kind !== "wide";
   batter.runs += delivery.runsBat;
-  batter.balls += faced ? 1 : 0;
+  batter.balls += faced ? Math.max(1, deliverySpan(delivery)) : 0;
   if (delivery.boundary === 4) batter.fours += 1;
   if (delivery.boundary === 6) batter.sixes += 1;
   state.batters[delivery.strikerId] = batter;
@@ -202,10 +203,10 @@ function applyFantasyBall(state: FantasyState, delivery: Delivery, meta: Innings
     economyBonus: 0,
   };
   bowler.runs += delivery.runsBat + delivery.extras;
-  if (delivery.kind !== "wide") bowler.legalBalls += 1;
+  if (delivery.kind !== "wide") bowler.legalBalls += deliverySpan(delivery);
   state.bowlers[delivery.bowlerId] = bowler;
 
-  if (delivery.wicket && delivery.wicket.dismissal !== "runout" && bowlerSlot) {
+  if (delivery.wicket && delivery.wicket.dismissal !== "runout" && delivery.wicket.dismissal !== "unspecified" && bowlerSlot) {
     bowler.wickets += 1;
     let base = 25;
     const extras: string[] = ["25 for the wicket"];

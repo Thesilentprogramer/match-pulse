@@ -17,6 +17,7 @@
     "@ai-sdk/openai": "^4.0.111",
     "@remotion/cli": "^4.0.542",
     "ai": "^7.0.166",
+    "cheerio": "^1.2.0",
     "class-variance-authority": "^0.7.1",
     "cn": "^0.5.2",
     "framer-motion": "^14.11.1",

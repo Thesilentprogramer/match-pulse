@@ -5,7 +5,7 @@
  * They are intentionally free of React, Next.js, and vendor SDKs.
  */
 
-export type Dismissal = "bowled" | "caught" | "lbw" | "runout" | "stumped";
+export type Dismissal = "bowled" | "caught" | "lbw" | "runout" | "stumped" | "unspecified";
 
 export type DeliveryKind = "legal" | "wide" | "noball";
 
@@ -36,6 +36,13 @@ export interface Delivery {
   groundOffsetMs: number;
   /** Optional desk note. Never required for copy to work. */
   note?: string;
+  /**
+   * Legal balls this row stands for. 1 for a real ball.
+   * A scoreboard passage uses a larger span instead of inventing the missing balls.
+   */
+  boardSpan?: number;
+  /** Absent on the recorded demo. `scoreboard` is an aggregate, not one delivery. */
+  feed?: "ball" | "scoreboard";
 }
 
 export type PlayerRole = "bat" | "wk" | "ar" | "bowl";

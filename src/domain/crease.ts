@@ -83,5 +83,7 @@ export function dismissalLabel(dismissal: Dismissal): string {
       return "run out";
     case "stumped":
       return "stumped";
+    case "unspecified":
+      return "out";
   }
 }

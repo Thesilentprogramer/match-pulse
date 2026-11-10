@@ -61,6 +61,10 @@ function resultFor(runs: number, wickets: number, legalBalls: number, meta: Inni
 }
 
 function ballChip(delivery: Delivery): string {
+  if ((delivery.boardSpan ?? 1) > 1) {
+    const total = delivery.runsBat + delivery.extras;
+    return delivery.wicket ? `${total}*` : `${total}*`;
+  }
   if (delivery.kind === "wide") return delivery.extras > 1 ? `${delivery.extras}wd` : "wd";
   if (delivery.wicket) return delivery.runsBat > 0 ? `${delivery.runsBat}W` : "W";
   if (delivery.boundary === 6) return "6";
@@ -74,7 +78,15 @@ function isDot(delivery: Delivery): boolean {
 
 function bowlerWicket(delivery: Delivery): boolean {
   if (!delivery.wicket) return false;
-  return delivery.wicket.dismissal !== "runout";
+  return delivery.wicket.dismissal !== "runout" && delivery.wicket.dismissal !== "unspecified";
+}
+
+/** Legal balls a row contributes. A wide adds none. A scoreboard passage may add many. */
+export function deliverySpan(delivery: Pick<Delivery, "kind" | "boardSpan">): number {
+  if (delivery.kind === "wide") return 0;
+  const span = delivery.boardSpan ?? 1;
+  if (!Number.isFinite(span) || span <= 1) return 1;
+  return Math.min(2700, Math.floor(span));
 }
 
 function touchBatter(card: BatterCard | undefined): BatterCard {
@@ -93,7 +105,7 @@ export function applyDelivery(score: ScoreState, delivery: Delivery, meta: Innin
   batters[delivery.strikerId] = {
     ...striker,
     runs: striker.runs + delivery.runsBat,
-    balls: striker.balls + (faced ? 1 : 0),
+    balls: striker.balls + (faced ? deliverySpan(delivery) : 0),
     fours: striker.fours + (delivery.boundary === 4 ? 1 : 0),
     sixes: striker.sixes + (delivery.boundary === 6 ? 1 : 0),
     out: striker.out || delivery.wicket?.playerOutId === delivery.strikerId,
@@ -114,9 +126,10 @@ export function applyDelivery(score: ScoreState, delivery: Delivery, meta: Innin
   const conceded = delivery.runsBat + delivery.extras;
   const opensTape = delivery.over !== score.overIndex;
   const overRuns = (opensTape ? 0 : score.thisOverRuns) + conceded;
-  const completedMaiden = legal && delivery.legalBall === 6 && overRuns === 0;
+  const span = deliverySpan(delivery);
+  const completedMaiden = legal && span === 1 && delivery.legalBall === 6 && overRuns === 0;
   bowlers[delivery.bowlerId] = {
-    legalBalls: bowler.legalBalls + (legal ? 1 : 0),
+    legalBalls: bowler.legalBalls + span,
     runs: bowler.runs + conceded,
     wickets: bowler.wickets + (bowlerWicket(delivery) ? 1 : 0),
     dots: bowler.dots + (isDot(delivery) ? 1 : 0),
@@ -125,7 +138,7 @@ export function applyDelivery(score: ScoreState, delivery: Delivery, meta: Innin
 
   const runs = score.runs + conceded;
   const wickets = score.wickets + (delivery.wicket ? 1 : 0);
-  const legalBalls = score.legalBalls + (legal ? 1 : 0);
+  const legalBalls = score.legalBalls + span;
   const result = resultFor(runs, wickets, legalBalls, meta);
   const ballsLeft = Math.max(0, meta.balls - legalBalls);
   const toWin = Math.max(0, meta.target - runs);
@@ -153,7 +166,7 @@ export function applyDelivery(score: ScoreState, delivery: Delivery, meta: Innin
   const recent = legal ? [...score.recent, chip].slice(-6) : score.recent;
   const partnershipBroken = Boolean(delivery.wicket);
   const partnershipRuns = partnershipBroken ? 0 : score.partnershipRuns + conceded;
-  const partnershipBalls = partnershipBroken ? 0 : score.partnershipBalls + (legal ? 1 : 0);
+  const partnershipBalls = partnershipBroken ? 0 : score.partnershipBalls + span;
 
   return {
     runs,

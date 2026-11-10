@@ -14,7 +14,7 @@ import {
 } from "@/domain/predictions";
 import { projectInnings } from "@/domain/project";
 import { createReorder, pushReorder } from "@/domain/reorder";
-import { applyDelivery, emptyScore, foldDeliveries } from "@/domain/score";
+import { applyDelivery, emptyScore, equationFor, foldDeliveries } from "@/domain/score";
 import { selectMatchView } from "@/domain/selectors";
 import type { Delivery, InningsMeta, UserPick } from "@/domain/types";
 import { winProbability } from "@/domain/win-prob";
@@ -282,6 +282,14 @@ describe("pod bots", () => {
     expect(once).toEqual(twice);
     expect(once.every((pick) => pick.memberId !== "you")).toBe(true);
     expect(once.length).toBe(POD.filter((member) => !member.you).length);
+  });
+});
+
+describe("a scoreboard with no target", () => {
+  it("does not read as a chase price", () => {
+    const score = { ...emptyScore(FIXTURE.meta), toWin: 10000, ballsLeft: 6, runs: 12, wickets: 1, oversLabel: "2.3" };
+    expect(equationFor(score)).toMatch(/no target/i);
+    expect(winProbability(score, score.runs + score.toWin)).toBe(0.5);
   });
 });
 

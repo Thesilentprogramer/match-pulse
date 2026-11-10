@@ -15,7 +15,7 @@ import {
   type PickSettlement,
 } from "@/domain/predictions";
 import { projectInnings, projectPrefix } from "@/domain/project";
-import { equationFor, formatPct, formatRate } from "@/domain/score";
+import { equationFor, formatPct, formatRate, openBoard } from "@/domain/score";
 import type {
   BotPick,
   Delivery,
@@ -137,11 +137,13 @@ export function selectMatchView(input: SelectorInput): MatchView {
 
   const equation = equationFor(score);
   const scoreLine = `${batting?.name ?? "Chase"} ${score.runs}/${score.wickets}`;
-  const announcement = [
-    `${batting?.short ?? "BAT"} ${score.runs} for ${score.wickets} after ${score.oversLabel}.`,
-    score.result === "chasing" ? `${score.toWin} needed from ${score.ballsLeft}.` : equation,
-    `Win chance ${formatPct(winProb)}.`,
-  ].join(" ");
+  const announcement = openBoard(score.toWin)
+    ? `${batting?.short ?? "BAT"} ${score.runs} for ${score.wickets} after ${score.oversLabel}. ${equation}.`
+    : [
+        `${batting?.short ?? "BAT"} ${score.runs} for ${score.wickets} after ${score.oversLabel}.`,
+        score.result === "chasing" ? `${score.toWin} needed from ${score.ballsLeft}.` : equation,
+        `Win chance ${formatPct(winProb)}.`,
+      ].join(" ");
 
   const fantasy = input.fantasyOn ? projectFantasy(deliveries, meta) : null;
   const copySource = cards.some((card) => input.enrichments[card.seq]?.source === "model") ? "model" : "template";

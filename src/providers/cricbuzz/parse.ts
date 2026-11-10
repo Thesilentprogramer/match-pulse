@@ -89,7 +89,7 @@ export function snapshotFromPage(page: Record<string, unknown>): CricbuzzSnapsho
     battingTeamId: batting.id,
     bowlingTeamId: bowling.id,
     target: target.runs,
-    balls: formatBalls(format),
+    balls: target.balls,
     teams: [team1, team2],
     players,
     battingOrder: [striker.id, nonStriker.id, EARLIER_BAT],
@@ -286,12 +286,15 @@ function chaseTarget(
   runs: number,
   legalBalls: number,
   format: string,
-): { runs: number; provisional: boolean } {
+): { runs: number; balls: number; provisional: boolean } {
   const published = numberish(mini.target);
-  if (published && published > runs) return { runs: published, provisional: false };
-  const limit = formatBalls(format);
-  const left = Math.max(1, limit - legalBalls);
-  return { runs: runs + left, provisional: true };
+  if (published && published > runs) {
+    return { runs: published, balls: formatBalls(format), provisional: false };
+  }
+  // No target yet (first innings, a break, a Test day). Keep the innings open
+  // for a few balls without inventing a 50-over or 450-over chase. The win
+  // model and the equation treat a 10000-run sentinel as "no target".
+  return { runs: runs + 10000, balls: legalBalls + 6, provisional: true };
 }
 
 export function legalBallsFromOvers(overs: number): number {

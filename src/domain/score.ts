@@ -7,6 +7,11 @@ export function oversLabel(legalBalls: number): string {
   return `${overs}.${balls}`;
 }
 
+/** A first innings with no published target. Not a chase. */
+export function openBoard(toWin: number): boolean {
+  return toWin > 5000;
+}
+
 export function formatRate(value: number | null | undefined): string {
   if (value === null || value === undefined || !Number.isFinite(value)) return "—";
   return value.toFixed(2);
@@ -26,7 +31,7 @@ export function emptyScore(meta: InningsMeta): ScoreState {
     ballsLeft: meta.balls,
     toWin: meta.target,
     crr: 0,
-    rrr: (meta.target / meta.balls) * 6,
+    rrr: openBoard(meta.target) ? null : (meta.target / meta.balls) * 6,
     strikerId: crease.strikerId,
     nonStrikerId: crease.nonStrikerId,
     bowlerId: meta.overs[0]?.bowlerId ?? null,
@@ -143,7 +148,7 @@ export function applyDelivery(score: ScoreState, delivery: Delivery, meta: Innin
   const ballsLeft = Math.max(0, meta.balls - legalBalls);
   const toWin = Math.max(0, meta.target - runs);
   const crr = legalBalls === 0 ? 0 : runs / (legalBalls / 6);
-  const rrr = result === "chasing" && ballsLeft > 0 ? toWin / (ballsLeft / 6) : null;
+  const rrr = openBoard(toWin) || result !== "chasing" || ballsLeft <= 0 ? null : toWin / (ballsLeft / 6);
 
   const crease = creaseAfter(
     {
@@ -210,6 +215,11 @@ export function equationFor(score: ScoreState): string {
   }
   if (score.result === "lost") return "The chase is over";
   if (score.result === "tied") return "Scores level";
+  // A scoreboard with no published target uses a sentinel (see Cricbuzz chaseTarget).
+  // That is not a chase, so it must not read as "2685 needed".
+  if (openBoard(score.toWin)) {
+    return `No target yet · ${score.runs}/${score.wickets} (${score.oversLabel})`;
+  }
   return `${score.toWin} needed from ${score.ballsLeft} · RRR ${formatRate(score.rrr)}`;
 }
 

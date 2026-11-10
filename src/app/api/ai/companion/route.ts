@@ -15,7 +15,9 @@ const schema = z.object({
 export async function POST(request: Request): Promise<Response> {
   const json = await request.json().catch(() => null);
   const parsed = schema.safeParse(json);
-  if (!parsed.success) return Response.json({ error: "Ask a shorter question." }, { status: 400 });
+  if (!parsed.success) {
+    return Response.json({ error: "Ask in one sentence, under 400 characters." }, { status: 400 });
+  }
   const input = { ...parsed.data, voice: parsed.data.voice as Voice };
   const source = await sourceFor(parsed.data.matchId);
   try {

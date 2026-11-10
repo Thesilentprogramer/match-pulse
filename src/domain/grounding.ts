@@ -1,6 +1,6 @@
 import { containsBannedLanguage } from "@/domain/guard";
 import { playerName } from "@/domain/players";
-import { foldDeliveries, formatRate } from "@/domain/score";
+import { equationFor, foldDeliveries, formatRate } from "@/domain/score";
 import type { Delivery, InningsMeta, ScoreState } from "@/domain/types";
 import { winProbability } from "@/domain/win-prob";
 
@@ -272,10 +272,7 @@ function lastOvers(deliveries: readonly Delivery[], meta: InningsMeta): OverLine
 }
 
 function equationText(score: ScoreState): string {
-  if (score.result === "won") return `Won with ${score.ballsLeft} balls left`;
-  if (score.result === "lost") return "The chase is over";
-  if (score.result === "tied") return "Scores level";
-  return `${score.toWin} needed from ${score.ballsLeft}`;
+  return equationFor(score);
 }
 
 function walk(value: unknown, tokens: Set<string>): void {

@@ -10,7 +10,7 @@ import {
   STARTING_BANK,
 } from "@/domain/predictions";
 import { projectInnings, projectPrefix } from "@/domain/project";
-import { formatPct } from "@/domain/score";
+import { formatPct, openBoard } from "@/domain/score";
 import type { Delivery, InningsMeta, ScoreState, UserPick } from "@/domain/types";
 import { winProbability } from "@/domain/win-prob";
 export interface StoryBeat {
@@ -95,9 +95,9 @@ export function buildMatchStory(input: {
     {
       id: "open",
       kicker: meta.competition,
-      title: `${batting} chase ${meta.target}`,
+      title: openBoard(meta.target) ? batting : `${batting} chase ${meta.target}`,
       body: `${bowling} posted ${meta.firstInnings.replace(`${bowling} `, "")}. ${meta.venue}, ${meta.city}.`,
-      stat: `Target ${meta.target}`,
+      stat: openBoard(meta.target) ? "No target yet" : `Target ${meta.target}`,
       tone: "open",
     },
   ];
@@ -107,7 +107,9 @@ export function buildMatchStory(input: {
       id: "powerplay",
       kicker: "Powerplay",
       title: `${batting} ${powerplay.after.runs}/${powerplay.after.wickets}`,
-      body: `After ${powerplay.after.oversLabel} overs the chase wants ${powerplay.after.toWin} from ${powerplay.after.ballsLeft}.`,
+      body: openBoard(meta.target)
+        ? `After ${powerplay.after.oversLabel} overs there is no target on the board.`
+        : `After ${powerplay.after.oversLabel} overs the chase wants ${powerplay.after.toWin} from ${powerplay.after.ballsLeft}.`,
       stat: formatPct(powerplay.prob),
       tone: "swing",
     });

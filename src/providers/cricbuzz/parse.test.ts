@@ -34,6 +34,8 @@ describe("cricbuzz parsers", () => {
     expect(snapshot.deliveries.some((delivery) => delivery.kind === "wide")).toBe(true);
     expect(snapshot.meta.venue).toContain("Al Amerat");
     expect(snapshot.inProgress).toBe(true);
+    expect(snapshot.meta.target).toBeGreaterThan(5000);
+    expect(snapshot.meta.balls).toBeLessThan(30);
   });
 
   it("rejects a page with no payload", () => {

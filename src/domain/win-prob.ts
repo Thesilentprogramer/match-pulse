@@ -18,6 +18,7 @@ export function winProbability(score: ScoreState, target: number): number {
   if (balls <= 0 || wicketsLeft <= 0) return 0;
   const need = target - score.runs;
   if (need <= 0) return 1;
+  if (need > 5000) return 0.5;
 
   const deathBoost = (balls <= 24 ? 1.15 : 0) + (balls <= 12 ? 1.05 : 0);
   const expectedRpo = clamp(9.55 - score.wickets * 0.42 + deathBoost, 3.5, 13);
